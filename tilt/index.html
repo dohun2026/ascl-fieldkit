@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>기울기 조사 관리 시스템</title>
+<script src="../versions.js"></script>
+<link rel="icon" type="image/png" href="../icon-192.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="manifest" href="../manifest.json">
+<meta name="theme-color" content="#1e3a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="기울기조사">
+<script src="xlsx.full.min.js"></script>
+<script src="exceljs.min.js"></script>
+<style>
+  :root{
+    color-scheme: light;
+    --navy:#1e3a5f; --navy-d:#152a45; --accent:#2563eb; --accent-d:#1d4ed8;
+    --bg:#f4f6f9; --card:#ffffff; --field:#f8fafc; --field-b:#eef1f5; --input:#ffffff;
+    --border:#dbe2ea; --text:#1f2937; --sub:#6b7280; --title:#1e3a5f;
+    --soft:#eef4ff; --soft-b:#c7d9fb; --soft-t:#2b4a7c; --dash:#b9c7dc;
+    --ok:#16803c; --ok-bg:#e7f6ec; --warn:#a15c07; --warn-bg:#fff4dc; --warn-b:#f2d48f;
+    --danger:#b91c1c; --danger-bg:#fdecec; --danger-b:#f3c2c2;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top, 0px);
+    padding-bottom:env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg:#0f1622; --card:#172131; --field:#1c2838; --field-b:#253246; --input:#111a27;
+      --border:#2e3d53; --text:#e5eaf1; --sub:#9aa7b8; --title:#cfe0ff;
+      --soft:#18294a; --soft-b:#2c4778; --soft-t:#c4d6f5; --dash:#3a5174;
+      --ok:#4ade80; --ok-bg:#12301f; --warn:#fbbf5a; --warn-bg:#33270f; --warn-b:#6b5420;
+      --danger:#f87171; --danger-bg:#3a1717; --danger-b:#6b2a2a;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#0f1622; --card:#172131; --field:#1c2838; --field-b:#253246; --input:#111a27;
+    --border:#2e3d53; --text:#e5eaf1; --sub:#9aa7b8; --title:#cfe0ff;
+    --soft:#18294a; --soft-b:#2c4778; --soft-t:#c4d6f5; --dash:#3a5174;
+    --ok:#4ade80; --ok-bg:#12301f; --warn:#fbbf5a; --warn-bg:#33270f; --warn-b:#6b5420;
+    --danger:#f87171; --danger-bg:#3a1717; --danger-b:#6b2a2a;
+  }
+  html{scroll-padding-top:env(safe-area-inset-top, 0px);}
+  *,*::before,*::after{box-sizing:inherit;}
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    background:var(--bg); color:var(--text); padding-bottom:60px;
+  }
+  body::before{content:""; position:fixed; inset:0 0 auto; height:env(safe-area-inset-top, 0px); z-index:31; background:var(--navy-d);}
+  header{
+    background:linear-gradient(135deg,var(--navy),var(--navy-d)); color:#fff;
+    padding:18px 16px 16px; position:sticky; top:env(safe-area-inset-top, 0px); z-index:30; box-shadow:0 2px 8px rgba(0,0,0,.15);
+  }
+  .header-row{display:flex; align-items:center; gap:10px;}
+  .back-btn{background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.3); color:#fff; border-radius:8px; padding:8px 11px; font-size:14px; cursor:pointer; flex-shrink:0;}
+  header h1{margin:0; font-size:18px; font-weight:700; line-height:1.3;}
+  header .subtitle{font-size:12px; color:#cbd7e6; margin-top:2px;}
+  .meta-line{font-size:12px; color:#d3ddec; margin-top:6px; display:flex; gap:14px; flex-wrap:wrap;}
+  .top-actions{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; align-items:center;}
+  .btn{border:none; border-radius:8px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;}
+  .btn-accent{background:var(--accent); color:#fff;}
+  .btn-accent:hover{background:var(--accent-d);}
+  .btn-ghost{background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.35);}
+  .btn-ghost:hover{background:rgba(255,255,255,.22);}
+  .save-badge{font-size:11.5px; color:#a8f0c6; display:flex; align-items:center; gap:5px; margin-left:auto;}
+  .dot{width:7px;height:7px;border-radius:50%;background:#22c55e;}
+  .brand-strip{display:flex; align-items:center; gap:9px; flex-wrap:wrap;}
+  .brand-item{display:flex; align-items:center; gap:7px;}
+  .brand-divider{color:rgba(255,255,255,.28); font-size:14px;}
+  .logo-badge{width:34px; height:34px; flex-shrink:0;}
+  .logo-badge svg{width:100%; height:100%; display:block;}
+  .brand-label{font-size:10.5px; font-weight:700; color:#dbe6f5; line-height:1.25; white-space:nowrap;}
+  button:focus-visible, input:focus-visible, summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  main{max-width:960px; margin:0 auto; padding:16px;}
+  .project-grid{display:grid; grid-template-columns:1fr; gap:12px;}
+  @media(min-width:640px){ .project-grid{grid-template-columns:1fr 1fr;} }
+  .project-card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:10px; cursor:pointer;}
+  .project-card .pname{font-size:16px; font-weight:700; color:var(--title);}
+  .project-card .pmeta{font-size:12.5px; color:var(--sub); display:flex; flex-direction:column; gap:3px;}
+  .pcount{display:inline-block; align-self:flex-start; background:var(--soft); color:var(--accent); font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:20px;}
+  .pactions{display:flex; gap:6px; margin-top:4px;}
+  .pactions button{flex:1; padding:8px; font-size:12px; border-radius:7px; border:1px solid var(--border); background:var(--field); cursor:pointer; font-weight:600; color:var(--text);}
+  .pactions button.excel{color:var(--ok);}
+  .pactions button.share{color:var(--accent);}
+  .pactions button.del{color:var(--danger);}
+  .empty-state{text-align:center; padding:44px 20px; color:var(--sub); border:2px dashed var(--border); border-radius:14px;}
+  .empty-state .big{font-size:38px; margin-bottom:10px;}
+  .home-actions{display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .add-project-btn, .import-btn{flex:1 1 200px; padding:14px; border:2px dashed var(--dash); background:var(--soft); color:var(--accent); border-radius:12px; font-size:14.5px; font-weight:700; cursor:pointer;}
+  .import-btn{background:transparent; color:var(--title);}
+
+  .modal-overlay{position:fixed; inset:0; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; z-index:100; padding:16px;}
+  .modal-overlay.show{display:flex;}
+  .modal-box{background:var(--card); border-radius:16px; padding:22px; width:100%; max-width:420px; box-shadow:0 20px 50px rgba(0,0,0,.3);}
+  .modal-box h2{margin:0 0 16px; font-size:17px; color:var(--title);}
+  .form-field{margin-bottom:14px;}
+  .form-field label{display:block; font-size:12.5px; font-weight:700; color:var(--sub); margin-bottom:6px;}
+  .form-field input{width:100%; border:1px solid var(--border); background:var(--input); color:var(--text); border-radius:8px; padding:11px 12px; font-size:15px;}
+  .modal-actions{display:flex; gap:8px; margin-top:18px;}
+  .modal-actions button{flex:1; padding:11px; border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; border:none;}
+  .modal-actions .cancel{background:var(--field); color:var(--text); border:1px solid var(--border);}
+  .modal-actions .save{background:var(--accent); color:#fff;}
+
+  .info-box{background:var(--soft); border:1px solid var(--soft-b); border-radius:10px; padding:12px 14px; font-size:12.5px; color:var(--soft-t); line-height:1.65; margin-bottom:16px;}
+  .info-box b{color:var(--title);}
+  details.info-box summary{cursor:pointer; font-weight:700; color:var(--title);}
+  .unit-strip{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--sub); margin:-4px 0 14px;}
+  .unit-strip b{color:var(--title);}
+
+  .site-card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px;}
+  .site-head{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .site-head input.site-name{flex:1; min-width:0; font-size:15px; font-weight:700; border:1px solid transparent; background:transparent; padding:6px 8px; border-radius:6px; color:var(--title);}
+  .site-head input.site-name:focus{border-color:var(--border); background:var(--field);}
+  .badge-idx{background:var(--navy); color:#fff; font-size:12px; font-weight:700; border-radius:6px; padding:4px 9px; flex-shrink:0; min-width:30px; text-align:center;}
+  .del-btn{background:transparent; border:1px solid var(--border); color:var(--sub); border-radius:6px; padding:6px 10px; font-size:12px; cursor:pointer; flex-shrink:0;}
+  .site-body{display:flex; flex-direction:column; gap:12px;}
+  .grid-inputs{display:grid; grid-template-columns:1fr; gap:10px; align-content:start;}
+  .row-field{display:flex; flex-direction:column; gap:6px; background:var(--field); border:1px solid var(--field-b); border-radius:9px; padding:9px 11px;}
+  .row-field label{font-size:12px; color:var(--title); font-weight:700;}
+  .row-field label small{font-weight:600; color:var(--sub);}
+  .dms{display:flex; gap:6px; align-items:center;}
+  .dms-pair{display:flex; flex-direction:column; align-items:center; gap:2px; flex:1; min-width:0;}
+  .dms-pair span.u{font-size:10.5px; color:var(--sub); font-weight:600;}
+  .dms input, .L-input{border:1px solid var(--border); background:var(--input); color:var(--text); border-radius:6px; -moz-appearance:textfield;}
+  .dms input{width:100%; padding:8px 4px; font-size:14.5px; text-align:center;}
+  .dms input::-webkit-outer-spin-button, .dms input::-webkit-inner-spin-button, .L-input::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  .L-wrap{display:flex; align-items:center; gap:8px;}
+  .L-input{width:100%; max-width:160px; padding:9px 10px; font-size:15px; font-weight:600;}
+  .L-unit{font-size:14px; font-weight:700; color:var(--sub);}
+  .warn{font-size:12px; color:var(--warn); background:var(--warn-bg); border:1px solid var(--warn-b); border-radius:7px; padding:7px 9px; line-height:1.5;}
+  .warn button{margin-top:5px; font-size:12px; font-weight:700; border:1px solid var(--warn-b); background:var(--card); color:var(--warn); border-radius:6px; padding:5px 9px; cursor:pointer;}
+
+  .result-box{padding:12px 14px; background:var(--field); border:1px dashed var(--border); border-radius:10px; display:grid; grid-template-columns:repeat(2,1fr); gap:10px 16px; font-size:12.5px; align-content:start;}
+  .result-box .item{color:var(--sub);}
+  .result-box .item b{display:block; font-size:15px; color:var(--title); margin-top:2px; font-variant-numeric:tabular-nums;}
+  .result-box .item b .u{font-size:12px; font-weight:600; color:var(--sub);}
+  .result-box .key{grid-column:1/-1; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding-top:8px; border-top:1px solid var(--border);}
+  .ratio{font-size:20px; font-weight:800; color:var(--title); font-variant-numeric:tabular-nums;}
+  .ratio-sub{font-size:12px; color:var(--sub);}
+  .grade{display:inline-block; margin-left:6px; font-size:11px; font-weight:700; padding:1px 7px; border-radius:10px;}
+  .unit-note{font-size:12px; color:var(--sub); font-weight:600;}
+  .grade.g-ab{background:var(--ok-bg); color:var(--ok);}
+  .grade.g-c{background:var(--warn-bg); color:var(--warn);}
+  .grade.g-de{background:var(--danger-bg); color:var(--danger);}
+  .dir-tag{display:inline-block; margin-left:6px; font-size:11px; padding:1px 7px; border-radius:10px; background:var(--danger-bg); color:var(--danger); font-weight:700;}
+  .dir-tag.safe{background:var(--ok-bg); color:var(--ok);}
+  .add-site-btn{width:100%; padding:13px; border:2px dashed var(--dash); background:var(--soft); color:var(--accent); border-radius:12px; font-size:14px; font-weight:700; cursor:pointer;}
+  @media(min-width:720px){
+    .site-body{flex-direction:row; align-items:stretch;}
+    .site-body .grid-inputs{flex:0 0 380px; max-width:380px;}
+    .site-body .result-box{flex:1;}
+  }
+  footer.note{max-width:960px; margin:20px auto 0; padding:0 16px; font-size:11.5px; color:var(--sub); text-align:center; line-height:1.6;}
+  .hidden{display:none !important;}
+  .toast{position:fixed; left:50%; bottom:calc(20px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); background:#1f2937; color:#fff; font-size:13px; padding:10px 16px; border-radius:10px; z-index:200; max-width:90vw; box-shadow:0 6px 20px rgba(0,0,0,.25);}
+  @media print{
+    header .top-actions, .del-btn, .add-site-btn, .home-actions, .warn{display:none !important;}
+    body{background:#fff;}
+  }
+header .header-row{padding-right:64px}
+.fk-home{position:absolute;right:12px;top:calc(10px + env(safe-area-inset-top,0px));z-index:40;font-size:12px;font-weight:700;text-decoration:none;padding:5px 10px;border-radius:14px;background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.35)}
+</style>
+</head>
+<body>
+
+<header>
+<a class="fk-home" href="../">⌂ 홈</a>
+  <div id="homeHeader">
+    <div class="header-row">
+      <div>
+        <h1>데오도라이트 각도법 실측 데이터</h1>
+        <div class="subtitle" id="app-ver"></div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="save-badge"><span class="dot"></span><span id="saveStatusHome">자동 저장됨</span></span>
+    </div>
+  </div>
+
+  <div id="projectHeader" class="hidden">
+    <div class="header-row">
+      <button class="back-btn" onclick="goHome()">← 목록</button>
+      <div style="flex:1; min-width:0;">
+        <h1 id="projTitle">프로젝트명</h1>
+        <div class="meta-line">
+          <span>📅 <span id="projDate">-</span></span>
+          <span>🧑‍🔧 <span id="projSurveyor">-</span></span>
+        </div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="btn btn-ghost" onclick="openEditProjectModal()">✎ 정보 수정</button>
+      <button class="btn btn-accent" onclick="shareProject()">📤 공유</button>
+      <button class="btn btn-ghost" onclick="exportExcel()">⬇ 엑셀 저장</button>
+      <button class="btn btn-ghost" onclick="window.print()">🖨 인쇄</button>
+      <span class="save-badge"><span class="dot"></span><span id="saveStatus">자동 저장됨</span></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="homeView">
+    <div class="home-actions">
+      <button class="add-project-btn" onclick="openAddProjectModal()">＋ 새 프로젝트 추가</button>
+      <button class="import-btn" onclick="document.getElementById('importFile').click()">📂 받은 파일 · 엑셀 불러오기</button>
+      <input type="file" id="importFile" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" class="hidden" onchange="importExcel(event)">
+    </div>
+    <div id="projectGrid" class="project-grid"></div>
+    <div id="emptyState" class="empty-state hidden">
+      <div class="big">🗂️</div>
+      <div>등록된 프로젝트가 없습니다.<br>새 프로젝트를 추가하거나, 예전에 이 앱으로 뽑은 엑셀을 불러오세요.</div>
+    </div>
+  </div>
+
+  <div id="projectView" class="hidden">
+    <details class="info-box">
+      <summary>계산식 안내 (탭하여 펼치기)</summary>
+      <div style="margin-top:8px;">
+        <b>입력값</b><br>
+        L : 기계점~대상물 수평거리 (<b>m</b>, 300 초과 값은 mm로 보고 자동 환산) · V1 : 하부 기준점 천정각 · V2 : 상부 변위점 천정각 · H2 : 상·하부 시준선의 수평각 차이(편각)<br><br>
+        <b>계산식</b> (거리는 m로 입력하고, 계산 단계에서 ×1000 하여 mm로 환산)<br>
+        h1 = L × 1000 × cot(V1) &nbsp;/&nbsp; h2 = L × 1000 × cot(V2) &nbsp;[mm]<br>
+        높이차 H = h2 − h1 [mm]<br>
+        수평변위 D = L × 1000 × tan(H2 환산각) [mm]<br>
+        기울기 = D ÷ H → 1/n (n = |H| ÷ |D|), ‰ = D ÷ H × 1000, 기울기각 θ = atan(|D| ÷ |H|)<br><br>
+        <b>평가등급</b> : a (1/750 이하) · b (1/750 초과~1/500 이하) · c (1/500 초과~1/250 이하) · d (1/250 초과~1/150 이하) · e (1/150 초과)<br><br>
+        ※ V1·V2는 데오도라이트가 표시하는 천정각(0~180°)을 그대로 입력합니다.<br>
+        ※ H2(편각)는 정면 0°0′0″ 기준 원주각(0°~360°)을 그대로 입력합니다. 180° 초과 값은 좌측 편위로 자동 환산됩니다(예: 358°10′20″ → −1°49′40″).
+      </div>
+    </details>
+    <div id="sitesContainer"></div>
+    <button class="add-site-btn" onclick="addSite()">＋ 측점(개소) 추가</button>
+  </div>
+</main>
+
+<footer class="note">입력 즉시 자동 계산되며 이 기기에 자동 저장됩니다. 통신이 없어도 사용할 수 있습니다.<br>“공유”를 누르면 카톡 등으로 프로젝트 파일을 보낼 수 있고, 받은 사람은 “받은 파일 · 엑셀 불러오기”로 열면 됩니다.</footer>
+
+<div class="modal-overlay" id="projectModal">
+  <div class="modal-box">
+    <h2 id="modalTitle">새 프로젝트 추가</h2>
+    <div class="form-field"><label for="inputProjName">프로젝트명</label><input type="text" id="inputProjName" placeholder="예: OO빌딩 정밀안전점검" autocomplete="off"></div>
+    <div class="form-field"><label for="inputProjDate">조사 날짜</label><input type="date" id="inputProjDate"></div>
+    <div class="form-field"><label for="inputProjSurveyor">조사자</label><input type="text" id="inputProjSurveyor" placeholder="예: 홍길동" autocomplete="off"></div>
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeProjectModal()">취소</button>
+      <button class="save" onclick="saveProjectModal()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'tilt_projects_v3';
+const L_SUSPECT_MM = 300; // L이 이 값(m)을 넘으면 mm 입력 의심
+let projects = [], projectSeq = 0, siteSeq = 0, currentProjectId = null, editingProjectId = null;
+
+/* ===== 버전 정보 — 수정해서 올릴 때마다 여기와 sw.js의 CACHE_NAME 숫자를 같이 올려주세요 ===== */
+(function(){ var V = (window.FK_VERSIONS || {})['tilt'] || {}; var el = document.getElementById('app-ver'); if (el) el.textContent = (V.v || '') + ' · ' + (V.date || '') + ' · made by ' + (V.author || '김도훈'); })();
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+/* ---------- 저장 ---------- */
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(Array.isArray(parsed)){ projects = parsed; }
+    }
+  }catch(e){ projects = []; }
+  projectSeq = Math.max(0, ...projects.map(p=>p.id||0));
+  siteSeq = Math.max(0, ...projects.flatMap(p=>(p.sites||[]).map(s=>s.id||0)));
+}
+function save(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(projects)); }catch(e){}
+  const t = new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  ['saveStatus','saveStatusHome'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='저장됨 · '+t; });
+}
+function toast(msg){
+  const el = document.createElement('div'); el.className='toast'; el.textContent=msg;
+  document.body.appendChild(el); setTimeout(()=>el.remove(), 3200);
+}
+
+/* ---------- 모델 ---------- */
+function defaultSite(name){
+  return { id: ++siteSeq, name: name || '측점', L:'', v1:{d:'',m:'',s:''}, v2:{d:'',m:'',s:''}, h2:{d:'',m:'',s:''} };
+}
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function getCurrentProject(){ return projects.find(p=>p.id===currentProjectId); }
+
+/* ---------- 계산 (모든 길이 결과는 mm) ---------- */
+function num(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+function toDeg(o){ return num(o.d) + num(o.m)/60 + num(o.s)/3600; }
+function toSignedH2(o){ const r = toDeg(o); return r > 180 ? r - 360 : r; }
+const rad = d => d*Math.PI/180;
+const cot = r => Math.cos(r)/Math.sin(r);
+
+function gradeOf(n, D){
+  if(D === 0) return 'a';
+  if(n >= 750) return 'a';
+  if(n >= 500) return 'b';
+  if(n >= 250) return 'c';
+  if(n >= 150) return 'd';
+  return 'e';
+}
+function computeSite(site){
+  const raw = parseFloat(site.L);
+  const anyAngle = [site.v1,site.v2,site.h2].some(o=>o.d!==''||o.m!==''||o.s!=='');
+  if(isNaN(raw) || raw<=0 || !anyAngle) return {valid:false};
+  // 300 초과면 mm 입력으로 보고 m로 환산 (실제 측정거리는 300 m를 넘지 않고, mm 값은 1000 미만이 될 수 없음)
+  const L = raw > L_SUSPECT_MM ? raw/1000 : raw; // m
+  const Lmm = L*1000;
+  const v1 = toDeg(site.v1), v2 = toDeg(site.v2), h2s = toSignedH2(site.h2);
+  const h1 = Lmm * cot(rad(v1));
+  const h2 = Lmm * cot(rad(v2));
+  const H = h2 - h1;
+  const D = Lmm * Math.tan(rad(h2s));
+  const okH = Math.abs(H) > 1e-9;
+  const n = (okH && D !== 0) ? Math.abs(H)/Math.abs(D) : null;
+  const permil = okH ? D/H*1000 : null;
+  const angle = okH ? Math.atan(Math.abs(D)/Math.abs(H))*180/Math.PI : null;
+  const direction = D > 0.5 ? '우측(+) 편위' : (D < -0.5 ? '좌측(-) 편위' : '편위 없음');
+  const grade = okH ? gradeOf(n, D) : '';
+  return { valid:true, L, v1, v2, h2s, h1, h2, H, D, n, permil, angle, direction, grade };
+}
+
+const f0 = v => Math.round(v).toLocaleString('ko-KR');
+const f1 = v => v.toLocaleString('ko-KR',{minimumFractionDigits:1, maximumFractionDigits:1});
+
+/* ---------- 화면 전환 ---------- */
+function goHome(){
+  currentProjectId = null;
+  document.getElementById('homeHeader').classList.remove('hidden');
+  document.getElementById('projectHeader').classList.add('hidden');
+  document.getElementById('homeView').classList.remove('hidden');
+  document.getElementById('projectView').classList.add('hidden');
+  renderHome();
+}
+function openProject(id){
+  currentProjectId = id;
+  document.getElementById('homeHeader').classList.add('hidden');
+  document.getElementById('projectHeader').classList.remove('hidden');
+  document.getElementById('homeView').classList.add('hidden');
+  document.getElementById('projectView').classList.remove('hidden');
+  renderProject();
+  window.scrollTo(0,0);
+}
+
+/* ---------- 홈 ---------- */
+function renderHome(){
+  const grid = document.getElementById('projectGrid');
+  const empty = document.getElementById('emptyState');
+  if(projects.length === 0){ grid.innerHTML=''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  const sorted = [...projects].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  grid.innerHTML = sorted.map(p=>`
+    <div class="project-card" onclick="openProject(${p.id})">
+      <div class="pname">${escapeHtml(p.name || '(이름 없음)')}</div>
+      <div class="pmeta"><span>📅 조사일: ${escapeHtml(p.date || '-')}</span><span>🧑‍🔧 조사자: ${escapeHtml(p.surveyor || '-')}</span></div>
+      <span class="pcount">측점 ${(p.sites||[]).length}개소</span>
+      <div class="pactions">
+        <button onclick="event.stopPropagation(); openProject(${p.id})">열기</button>
+        <button class="share" onclick="event.stopPropagation(); shareProject(${p.id})">공유</button>
+        <button class="excel" onclick="event.stopPropagation(); exportExcel(${p.id})">엑셀</button>
+        <button class="del" onclick="event.stopPropagation(); deleteProject(${p.id})">삭제</button>
+      </div>
+    </div>`).join('');
+}
+function deleteProject(id){
+  const p = projects.find(x=>x.id===id);
+  if(!confirm(`“${p ? p.name : ''}” 프로젝트를 삭제할까요? 되돌릴 수 없습니다.`)) return;
+  projects = projects.filter(x=>x.id!==id);
+  save(); renderHome();
+}
+
+/* ---------- 프로젝트 모달 ---------- */
+function openAddProjectModal(){
+  editingProjectId = null;
+  document.getElementById('modalTitle').textContent = '새 프로젝트 추가';
+  document.getElementById('inputProjName').value = '';
+  document.getElementById('inputProjDate').value = todayStr();
+  document.getElementById('inputProjSurveyor').value = '';
+  document.getElementById('projectModal').classList.add('show');
+  setTimeout(()=>document.getElementById('inputProjName').focus(), 50);
+}
+function openEditProjectModal(){
+  const p = getCurrentProject(); if(!p) return;
+  editingProjectId = p.id;
+  document.getElementById('modalTitle').textContent = '프로젝트 정보 수정';
+  document.getElementById('inputProjName').value = p.name || '';
+  document.getElementById('inputProjDate').value = p.date || todayStr();
+  document.getElementById('inputProjSurveyor').value = p.surveyor || '';
+  document.getElementById('projectModal').classList.add('show');
+}
+function closeProjectModal(){ document.getElementById('projectModal').classList.remove('show'); }
+function saveProjectModal(){
+  const name = document.getElementById('inputProjName').value.trim();
+  const date = document.getElementById('inputProjDate').value;
+  const surveyor = document.getElementById('inputProjSurveyor').value.trim();
+  if(!name){ alert('프로젝트명을 입력해주세요.'); return; }
+  if(editingProjectId){
+    const p = projects.find(x=>x.id===editingProjectId);
+    p.name = name; p.date = date; p.surveyor = surveyor;
+    save(); closeProjectModal(); renderProjectHeader();
+  } else {
+    const p = { id: ++projectSeq, name, date, surveyor, createdAt: Date.now(), sites:[defaultSite('측점 1')] };
+    projects.push(p); save(); closeProjectModal(); openProject(p.id);
+  }
+}
+
+/* ---------- 프로젝트 상세 ---------- */
+function renderProjectHeader(){
+  const p = getCurrentProject(); if(!p) return;
+  document.getElementById('projTitle').textContent = p.name;
+  document.getElementById('projDate').textContent = p.date || '-';
+  document.getElementById('projSurveyor').textContent = p.surveyor || '-';
+}
+function addSite(){
+  const p = getCurrentProject(); if(!p) return;
+  p.sites.push(defaultSite('측점 ' + (p.sites.length+1)));
+  save(); renderProject();
+}
+function removeSite(id){
+  const p = getCurrentProject(); if(!p) return;
+  if(p.sites.length<=1){ alert('최소 1개 측점은 있어야 합니다.'); return; }
+  if(!confirm('이 측점을 삭제할까요?')) return;
+  p.sites = p.sites.filter(s=>s.id!==id);
+  save(); renderProject();
+}
+function convertLtoM(id){
+  const p = getCurrentProject(); const s = p && p.sites.find(x=>x.id===id); if(!s) return;
+  s.L = String(+(parseFloat(s.L)/1000).toFixed(4));
+  save(); renderProject();
+}
+function warnHtml(site){
+  const L = parseFloat(site.L);
+  if(isNaN(L) || L <= L_SUSPECT_MM) return '';
+  return `<div class="unit-note">${L.toLocaleString('ko-KR')} mm → ${(L/1000).toFixed(3)} m로 환산하여 계산</div>`;
+}
+function resultHtml(r){
+  if(!r.valid) return `<div class="item" style="grid-column:1/-1;">거리 L과 각도를 입력하면 결과가 표시됩니다.</div>`;
+  const gcls = r.grade==='a'||r.grade==='b' ? 'g-ab' : (r.grade==='c' ? 'g-c' : 'g-de');
+  let ratioText = '-';
+  if(r.permil !== null){
+    ratioText = r.n===null ? '수직 (기울음 없음)' : ('1 : ' + r.n.toFixed(1) + ' (' + r.permil.toFixed(2) + '‰)');
+    ratioText += ' &nbsp;|&nbsp; 기울기각 ' + r.angle.toFixed(3) + '°';
+  }
+  return `
+    <div class="item">하부 높이 h1<b>${f1(r.h1)} mm</b></div>
+    <div class="item">상부 높이 h2<b>${f1(r.h2)} mm</b></div>
+    <div class="item">높이차 H<b>${f1(r.H)} mm</b></div>
+    <div class="item">수평변위 D<b>${f1(r.D)} mm</b></div>
+    <div class="item" style="grid-column:1/-1;">기울기율<b>${ratioText}<span class="dir-tag ${r.direction.includes('없음')?'safe':''}">${r.direction}</span>${r.grade ? `<span class="grade ${gcls}">등급 ${r.grade}</span>` : ''}</b></div>`;
+}
+function dmsInputs(site, key){
+  return ['d','m','s'].map((k,i)=>`<div class="dms-pair"><span class="u">${['도','분','초'][i]}</span><input type="number" inputmode="decimal" ${k==='s'?'step="0.1"':''} data-site="${site.id}" data-field="${key}.${k}" value="${escapeHtml(site[key][k])}"></div>`).join('');
+}
+function renderProject(){
+  renderProjectHeader();
+  const p = getCurrentProject(); if(!p) return;
+  const container = document.getElementById('sitesContainer');
+  container.innerHTML = p.sites.map((site, idx)=>{
+    const r = computeSite(site);
+    return `
+    <div class="site-card" data-id="${site.id}">
+      <div class="site-head">
+        <span class="badge-idx">#${idx+1}</span>
+        <input class="site-name" value="${escapeHtml(site.name)}" data-site="${site.id}" data-field="name" aria-label="측점명">
+        <button class="del-btn" onclick="removeSite(${site.id})">삭제</button>
+      </div>
+      <div class="site-body">
+        <div class="grid-inputs">
+          <div class="row-field">
+            <label>거리 L (m)</label>
+            <input class="L-input" type="number" inputmode="decimal" step="0.001" value="${escapeHtml(site.L)}" data-site="${site.id}" data-field="L" placeholder="예: 35.000 또는 35000">
+            <div class="warn-slot">${warnHtml(site)}</div>
+          </div>
+          <div class="row-field"><label>V1 (하부, 천정각)</label><div class="dms">${dmsInputs(site,'v1')}</div></div>
+          <div class="row-field"><label>V2 (상부, 천정각)</label><div class="dms">${dmsInputs(site,'v2')}</div></div>
+          <div class="row-field"><label>H2 (편각, 0°~360°)</label><div class="dms">${dmsInputs(site,'h2')}</div></div>
+        </div>
+        <div class="result-box">${resultHtml(r)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('input').forEach(el=>el.addEventListener('input', onFieldChange));
+}
+function onFieldChange(e){
+  const el = e.target, p = getCurrentProject(); if(!p) return;
+  const site = p.sites.find(s=>s.id===parseInt(el.dataset.site));
+  const field = el.dataset.field; if(!site || !field) return;
+  if(field.includes('.')){ const [g,k] = field.split('.'); site[g][k] = el.value; }
+  else site[field] = el.value;
+  save();
+  const card = el.closest('.site-card');
+  card.querySelector('.result-box').innerHTML = resultHtml(computeSite(site));
+  if(field === 'L') card.querySelector('.warn-slot').innerHTML = warnHtml(site);
+}
+
+/* ---------- 엑셀 저장 (ExcelJS: 수식 + 테두리 서식) ---------- */
+const THIN = { style:'thin' };
+const BOX = { top:THIN, bottom:THIN, left:THIN, right:THIN };
+const XFONT = { name:'맑은 고딕', size:10 };
+
+function buildWorkbook(p){
+  const all = p.sites.map(s=>({s, r:computeSite(s)}));
+  const rows = all.filter(x=>x.r.valid);
+  const wb = new ExcelJS.Workbook();
+  const ws1 = wb.addWorksheet('측정상세');
+  const ws2 = wb.addWorksheet('보고서용');
+
+  // ---- 시트1: 측정상세 ----
+  [['프로젝트명', p.name||''], ['조사 날짜', p.date||''], ['조사자', p.surveyor||'']].forEach((kv,i)=>{
+    ws1.getCell(`A${i+1}`).value = kv[0]; ws1.getCell(`A${i+1}`).font = {...XFONT, bold:true};
+    ws1.getCell(`B${i+1}`).value = kv[1]; ws1.getCell(`B${i+1}`).font = XFONT;
+  });
+  const head = ['No','측점명','거리 L(m)','V1_도','V1_분','V1_초','V1(십진도)','V2_도','V2_분','V2_초','V2(십진도)',
+    'H2_도(0~360)','H2_분','H2_초','H2(십진도,0~360)','H2(환산각,±)','h1(mm)','h2(mm)','높이차H(mm)','수평변위D(mm)',
+    'n(H/D)','기울기(1:n)','기울기(‰)','기울기각(°)','편위방향','평가등급'];
+  const hr = ws1.getRow(5);
+  head.forEach((h,i)=>{
+    const c = hr.getCell(i+1);
+    c.value = h; c.font = {...XFONT, bold:true}; c.border = BOX;
+    c.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
+    c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFE8EEF6'}};
+  });
+  hr.height = 30;
+
+  rows.forEach(({s, r: x}, i)=>{
+    const R = 6 + i;
+    const n = v => num(v);
+    const set = (col, v, fmt) => { const c = ws1.getCell(col+R); c.value = v; if(fmt) c.numFmt = fmt; };
+    const fx = (col, f, res, fmt) => set(col, {formula:f, result:res}, fmt);
+    set('A', i+1); set('B', s.name); set('C', x.L, '0.000');
+    set('D', n(s.v1.d)); set('E', n(s.v1.m)); set('F', n(s.v1.s));
+    fx('G', `D${R}+E${R}/60+F${R}/3600`, x.v1, '0.000000');
+    set('H', n(s.v2.d)); set('I', n(s.v2.m)); set('J', n(s.v2.s));
+    fx('K', `H${R}+I${R}/60+J${R}/3600`, x.v2, '0.000000');
+    set('L', n(s.h2.d)); set('M', n(s.h2.m)); set('N', n(s.h2.s));
+    fx('O', `L${R}+M${R}/60+N${R}/3600`, toDeg(s.h2), '0.000000');
+    fx('P', `IF(O${R}>180,O${R}-360,O${R})`, x.h2s, '0.000000');
+    fx('Q', `C${R}*1000/TAN(RADIANS(G${R}))`, x.h1, '#,##0.0');
+    fx('R', `C${R}*1000/TAN(RADIANS(K${R}))`, x.h2, '#,##0.0');
+    fx('S', `R${R}-Q${R}`, x.H, '#,##0.0');
+    fx('T', `C${R}*1000*TAN(RADIANS(P${R}))`, x.D, '#,##0.00');
+    fx('U', `IF(OR(S${R}=0,T${R}=0),"",ABS(S${R})/ABS(T${R}))`, x.n===null ? '' : x.n, '#,##0.0');
+    fx('V', `IF(U${R}="","-","1 : "&TEXT(U${R},"0.0"))`, x.n===null ? '-' : '1 : ' + x.n.toFixed(1));
+    fx('W', `IF(S${R}=0,"",T${R}/S${R}*1000)`, x.permil===null ? '' : x.permil, '0.000');
+    fx('X', `IF(S${R}=0,"",DEGREES(ATAN(ABS(T${R})/ABS(S${R}))))`, x.angle===null ? '' : x.angle, '0.0000');
+    fx('Y', `IF(T${R}>0.5,"우측(+) 편위",IF(T${R}<-0.5,"좌측(-) 편위","편위 없음"))`, x.direction);
+    fx('Z', `IF(S${R}=0,"",IF(T${R}=0,"a",IF(U${R}>=750,"a",IF(U${R}>=500,"b",IF(U${R}>=250,"c",IF(U${R}>=150,"d","e"))))))`, x.grade);
+    const row = ws1.getRow(R);
+    for(let c=1; c<=26; c++){
+      const cell = row.getCell(c);
+      cell.border = BOX; cell.font = XFONT; cell.alignment = {horizontal:'center', vertical:'middle'};
+    }
+  });
+  const noteRow = 5 + rows.length + 2;
+  ['※ 단위 : 거리 L은 m, h1·h2·H·D는 수식에서 L×1000으로 mm 환산',
+   '※ 평가등급 : a(1/750 이하) b(1/750 초과~1/500 이하) c(1/500 초과~1/250 이하) d(1/250 초과~1/150 이하) e(1/150 초과)',
+   '※ 편위방향 : |D| ≤ 0.5mm 이면 “편위 없음”'].forEach((t,i)=>{
+    const c = ws1.getCell(`A${noteRow+i}`); c.value = t; c.font = {...XFONT, size:9, color:{argb:'FF555555'}};
+  });
+  head.forEach((h,i)=>{ ws1.getColumn(i+1).width = i===1 ? 16 : (i>=16 && i<=24 ? 13 : 11); });
+  ws1.views = [{ state:'frozen', ySplit:5 }];
+
+  // ---- 시트2: 보고서용 ----
+  ws2.mergeCells('A1:D1');
+  ws2.getCell('A1').value = `<표> ${p.name||''} 건축시설물 기울기 측정 결과`;
+  ws2.getCell('A1').font = {...XFONT, size:12, bold:true};
+  ws2.getCell('A1').alignment = {horizontal:'left', vertical:'middle'};
+  ws2.getCell('F1').value = '(단위 : mm)';
+  ws2.getCell('F1').font = {...XFONT, italic:true};
+  ws2.getCell('F1').alignment = {horizontal:'right'};
+  const h2r = ws2.getRow(2);
+  ['측정위치','대상높이(H)','변위(δ)','기울기(δ/H)','평가등급','비고'].forEach((h,i)=>{
+    const c = h2r.getCell(i+1);
+    c.value = h; c.font = {...XFONT, bold:true}; c.border = BOX;
+    c.alignment = {horizontal:'center', vertical:'middle'};
+    c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFE8EEF6'}};
+  });
+  rows.forEach(({s, r: x}, i)=>{
+    const R = 3 + i, src = 6 + i;
+    const row = ws2.getRow(R);
+    row.getCell(1).value = {formula:`측정상세!B${src}`, result:s.name};
+    row.getCell(2).value = {formula:`ROUND(ABS(측정상세!S${src}),0)`, result:Math.round(Math.abs(x.H))};
+    row.getCell(3).value = {formula:`ROUND(ABS(측정상세!T${src}),1)`, result:Math.round(Math.abs(x.D)*10)/10};
+    row.getCell(4).value = {formula:`IF(측정상세!U${src}="","-","1/ "&ROUND(측정상세!U${src},0))`, result: x.n===null ? '-' : '1/ ' + Math.round(x.n)};
+    row.getCell(5).value = {formula:`측정상세!Z${src}`, result:x.grade};
+    row.getCell(6).value = '-';
+    row.getCell(2).numFmt = '#,##0';
+    row.getCell(3).numFmt = '0.0';
+    for(let c=1; c<=6; c++){
+      const cell = row.getCell(c);
+      cell.border = BOX; cell.font = XFONT; cell.alignment = {horizontal:'center', vertical:'middle'};
+    }
+  });
+  [16,13,11,13,10,10].forEach((w,i)=>{ ws2.getColumn(i+1).width = w; });
+
+  return { wb, used: rows.length, skipped: all.length - rows.length };
+}
+
+// 프로젝트 → 엑셀 파일(Blob) 만들기
+async function makeProjectFile(projectIdArg){
+  if(typeof ExcelJS === 'undefined'){ alert('엑셀 기능을 불러오지 못했습니다. 앱을 다시 열어 주세요.'); return null; }
+  const p = projects.find(x=>x.id===(projectIdArg || currentProjectId));
+  if(!p){ alert('프로젝트를 찾을 수 없습니다.'); return null; }
+  const { wb, used, skipped } = buildWorkbook(p);
+  if(used === 0){ alert('계산 가능한 측점이 없습니다. 거리와 각도를 먼저 입력해 주세요.'); return null; }
+  const filename = `${(p.name||'project').replace(/[\\/:*?"<>|]/g,'_')}_기울기측정_${p.date || todayStr()}.xlsx`;
+  let buf;
+  try{ buf = await wb.xlsx.writeBuffer(); }
+  catch(e){ alert('엑셀 생성 중 오류가 발생했습니다: ' + e.message); return null; }
+  return { p, filename, blob: new Blob([buf], {type: XLSX_MIME}), skipped };
+}
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+async function exportExcel(projectIdArg){
+  const r = await makeProjectFile(projectIdArg); if(!r) return;
+  downloadBlob(r.blob, r.filename);
+  if(r.skipped > 0) toast(`입력이 덜 된 측점 ${r.skipped}개는 제외하고 저장했습니다.`);
+}
+// 카톡 등으로 바로 보내기 (휴대폰 공유창). 지원 안 되면 파일로 저장
+async function shareProject(projectIdArg){
+  const r = await makeProjectFile(projectIdArg); if(!r) return;
+  const file = new File([r.blob], r.filename, {type: XLSX_MIME});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{
+      await navigator.share({ files:[file], title: r.p.name + ' 기울기 측정', text: r.p.name + ' 기울기 측정 데이터 (기울기 조사 앱 → 엑셀 불러오기로 열기)' });
+      if(r.skipped > 0) toast(`입력이 덜 된 측점 ${r.skipped}개는 제외하고 보냈습니다.`);
+    }catch(e){
+      if(e && e.name === 'AbortError') return; // 사용자가 공유창을 닫음
+      downloadBlob(r.blob, r.filename);
+      toast('공유창을 열 수 없어 파일로 저장했습니다. 카톡에서 파일로 보내 주세요.');
+    }
+  } else {
+    downloadBlob(r.blob, r.filename);
+    toast('이 기기는 바로 공유를 지원하지 않아 파일로 저장했습니다. 카톡에서 파일로 보내 주세요.');
+  }
+}
+
+/* ---------- 엑셀 불러오기 (이 앱의 신·구 양식 모두) ---------- */
+function importExcel(ev){
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';
+  if(!file) return;
+  if(typeof XLSX === 'undefined'){ alert('엑셀 라이브러리를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.'); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const wb = XLSX.read(reader.result, {type:'array', cellDates:true});
+      const sheetName = wb.SheetNames.includes('측정상세') ? '측정상세' : wb.SheetNames[0];
+      const aoa = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:'', raw:true});
+      const meta = {};
+      let hIdx = -1;
+      aoa.forEach((row, i)=>{
+        const k = String(row[0]).trim();
+        if(k==='프로젝트명') meta.name = row[1];
+        if(k==='조사 날짜') meta.date = row[1];
+        if(k==='조사자') meta.surveyor = row[1];
+        if(hIdx<0 && row.some(c=>String(c).trim()==='측점명')) hIdx = i;
+      });
+      if(hIdx < 0) throw new Error('측점명 머리글을 찾지 못했습니다.');
+      const header = aoa[hIdx].map(c=>String(c).trim());
+      const col = names => { for(const n of names){ const i = header.indexOf(n); if(i>=0) return i; } return -1; };
+      const C = {
+        name: col(['측점명']),
+        L: header.findIndex(h=>h.startsWith('거리')),
+        v1d: col(['V1_도','V1 천정각(도)']), v1m: col(['V1_분','V1(분)']), v1s: col(['V1_초','V1(초)']),
+        v2d: col(['V2_도','V2 천정각(도)']), v2m: col(['V2_분','V2(분)']), v2s: col(['V2_초','V2(초)']),
+        h2d: col(['H2_도(0~360)','H2 편각(도,0~360)']), h2m: col(['H2_분','H2(분)']), h2s: col(['H2_초','H2(초)'])
+      };
+      if(Object.values(C).some(i=>i<0)) throw new Error('이 앱에서 만든 엑셀 양식이 아닙니다.');
+      const headerMm = /\(mm\)/.test(header[C.L]);
+      let converted = 0;
+      const sites = [];
+      for(let i=hIdx+1; i<aoa.length; i++){ /* 거리는 m로 정리해 저장 */
+        const row = aoa[i];
+        const nm = String(row[C.name]).trim();
+        if(!nm || nm.startsWith('※')) continue;
+        let L = parseFloat(row[C.L]);
+        if(!isNaN(L) && (headerMm || L > L_SUSPECT_MM)){ L = L/1000; converted++; }
+        const v = k => (row[C[k]]===''||row[C[k]]==null) ? '' : String(row[C[k]]);
+        const s = defaultSite(nm);
+        s.L = isNaN(L) ? '' : String(+L.toFixed(4));
+        s.v1 = {d:v('v1d'), m:v('v1m'), s:v('v1s')};
+        s.v2 = {d:v('v2d'), m:v('v2m'), s:v('v2s')};
+        s.h2 = {d:v('h2d'), m:v('h2m'), s:v('h2s')};
+        sites.push(s);
+      }
+      if(!sites.length) throw new Error('불러올 측점 데이터가 없습니다.');
+      let date = meta.date;
+      if(date instanceof Date) date = date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+      let name = String(meta.name || file.name.replace(/\.xlsx?$/i,'')).trim();
+      const same = projects.find(p=>p.name===name);
+      if(same && confirm(`“${name}” 프로젝트가 이미 있습니다.\n받은 파일 내용으로 교체할까요?\n(취소를 누르면 새 프로젝트로 따로 추가합니다)`)){
+        same.date = String(date||''); same.surveyor = String(meta.surveyor||''); same.sites = sites;
+        save(); renderHome();
+        toast(`“${name}” 프로젝트를 받은 내용(${sites.length}개 측점)으로 교체했습니다.`);
+        return;
+      }
+      if(same) name += ' (받음)';
+      const p = { id: ++projectSeq, name, date: String(date||''), surveyor: String(meta.surveyor||''), createdAt: Date.now(), sites };
+      projects.push(p); save(); renderHome();
+      toast(`${sites.length}개 측점을 불러왔습니다.` + (converted ? ` 거리 ${converted}건은 mm로 판단해 m로 환산했습니다.` : ''));
+    }catch(e){
+      alert('불러오기 실패: ' + e.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ---------- 시작 ---------- */
+load();
+goHome();
+if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('../sw.js', {scope:'../'}).catch(()=>{}); }); }
+document.getElementById('projectModal').addEventListener('click', e=>{ if(e.target.id==='projectModal') closeProjectModal(); });
+</script>
+</body>
+</html>

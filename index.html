@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e3a5f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ASCL 필드킷">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>ASCL 필드킷</title>
+<script src="versions.js"></script>
+<style>
+:root{--navy:#1e3a5f;--navy-d:#152a45;--accent:#2563eb;--yellow:#f5b82e;--bg:#f4f6f9;--card:#fff;--border:#dbe2ea;--text:#1f2937;--sub:#6b7280;--title:#1e3a5f;--soft:#eef4ff;--ok:#16803c;--ok-bg:#e7f6ec;color-scheme:light}
+@media (prefers-color-scheme: dark){:root{--bg:#0f1622;--card:#172131;--border:#2e3d53;--text:#e5eaf1;--sub:#9aa7b8;--title:#cfe0ff;--soft:#18294a;--ok:#4ade80;--ok-bg:#12301f;color-scheme:dark}}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding-bottom:calc(30px + env(safe-area-inset-bottom,0px))}
+header{background:linear-gradient(135deg,var(--navy),var(--navy-d));color:#fff;padding:calc(18px + env(safe-area-inset-top,0px)) 18px 22px}
+.brand-strip{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.brand-item{display:flex;align-items:center;gap:7px}
+.brand-divider{color:rgba(255,255,255,.28);font-size:14px}
+.logo-badge{width:34px;height:34px;flex-shrink:0}.logo-badge svg{width:100%;height:100%;display:block}
+.brand-label{font-size:10.5px;font-weight:700;color:#dbe6f5;line-height:1.25;white-space:nowrap}
+h1{font-size:24px;font-weight:800;margin-top:16px;letter-spacing:-.3px}
+h1 span{color:var(--yellow)}
+.sub{font-size:12.5px;color:#cbd7e6;margin-top:4px}
+main{max-width:640px;margin:0 auto;padding:16px}
+.tool{display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:12px;text-decoration:none;color:inherit;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.tool:active{transform:scale(.99)}
+.tool img{width:64px;height:64px;border-radius:14px;display:block}
+.tool .nm{font-size:16.5px;font-weight:800;color:var(--title)}
+.tool .ds{font-size:12px;color:var(--sub);margin-top:3px;line-height:1.45}
+.tool .vr{display:inline-block;margin-top:6px;font-size:11px;font-weight:700;color:var(--accent);background:var(--soft);border-radius:8px;padding:2px 8px}
+.tool .vr small{font-weight:500;color:var(--sub)}
+.tool .go{font-size:22px;color:var(--sub)}
+.tool .nt{font-size:11px;color:var(--sub);margin-top:3px}
+.box{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-top:6px;font-size:12.5px;line-height:1.7}
+.box b{color:var(--title)}
+.off{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub);margin:4px 2px 14px}
+.dot{width:8px;height:8px;border-radius:50%;background:#9ca3af}.dot.on{background:#22c55e}
+footer{text-align:center;font-size:11px;color:var(--sub);margin-top:18px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand-strip">
+      <div class="brand-item" title="건축구조안전연구소 (ASCL)">
+        <div class="logo-badge">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="46" height="46" rx="12" fill="#ffffff"/>
+            <rect x="1" y="1" width="46" height="46" rx="12" fill="none" stroke="#2563eb" stroke-width="1.5"/>
+            <path d="M12 34 V19 L24 12 L36 19 V34 Z" fill="none" stroke="#1e3a5f" stroke-width="2.4" stroke-linejoin="round"/>
+            <rect x="20.5" y="15" width="7" height="19" fill="#ffffff"/>
+            <rect x="21.6" y="16" width="4.8" height="7.5" fill="#2563eb"/>
+            <rect x="21.6" y="25" width="4.8" height="9" fill="#2563eb"/>
+            <rect x="22.6" y="14.2" width="2.8" height="10" fill="#2563eb"/>
+          </svg>
+        </div>
+        <div class="brand-label">건축구조안전<br>연구소</div>
+      </div>
+      <span class="brand-divider">|</span>
+      <div class="brand-item" title="(주)유원구조진단 건축사사무소">
+        <div class="logo-badge">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="46" height="46" rx="12" fill="#ffffff"/>
+            <rect x="6" y="8" width="26" height="34" rx="1.5" fill="none" stroke="#111827" stroke-width="2.8"/>
+            <path d="M13 16 v9 a6.2 6.2 0 0 0 12.4 0 v-6" fill="none" stroke="#2563eb" stroke-width="2.8" stroke-linecap="round"/>
+            <path d="M25.5 16 l3.4 12.5 l3.2 -9 l3.2 9 l3.4 -12.5" fill="none" stroke="#2563eb" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="38.5" cy="17" r="2.3" fill="#2563eb"/>
+          </svg>
+        </div>
+        <div class="brand-label">(주)유원<br>구조진단</div>
+      </div>
+      <span class="brand-divider">|</span>
+      <div class="brand-item" title="(주)장원구조건축사사무소">
+        <div class="logo-badge">
+          <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="46" height="46" rx="12" fill="#ffffff"/>
+            <circle cx="24" cy="24" r="13" fill="none" stroke="#1d4ed8" stroke-width="5" stroke-dasharray="66 16" stroke-linecap="round" transform="rotate(-35 24 24)"/>
+            <circle cx="24" cy="11.5" r="3" fill="#1d4ed8"/>
+          </svg>
+        </div>
+        <div class="brand-label">(주)장원<br>구조</div>
+      </div>
+    </div>
+  <h1>ASCL <span>필드킷</span></h1>
+  <div class="sub">구조안전 현장 도구 모음 · 통신 없이도 사용 가능</div>
+</header>
+<main>
+  <div class="off"><span class="dot" id="offDot"></span><span id="offTxt">오프라인 저장 확인 중…</span></div>
+  <div id="tools"></div>
+  <div class="box"><b>처음 쓰는 분</b> — 이 화면을 인터넷 되는 곳에서 한 번 연 뒤, 크롬 메뉴 "앱 설치"(아이폰은 사파리 공유 → "홈 화면에 추가")로 설치하세요. 그 후로는 지하·피트처럼 통신이 안 되는 곳에서도 세 도구 모두 열립니다. 카카오톡에서 링크를 열었다면 오른쪽 위 메뉴에서 "다른 브라우저로 열기"를 먼저 눌러 주세요.</div>
+  <footer id="foot"></footer>
+</main>
+<script>
+var V = window.FK_VERSIONS || {};
+var TOOLS = [
+  {id:'tilt',  href:'tilt/',  name:'기울기 조사',   desc:'데오도라이트 각도법 측정 · 현장별 저장 · 엑셀 2시트 · 카톡 공유'},
+  {id:'ndt',   href:'ndt/',   name:'비파괴강도',    desc:'슈미트해머(일반·과기부·KALIS) · 초음파 직접/표면법 · 역계산'},
+  {id:'rebar', href:'rebar/', name:'철근 탐사',     desc:'철근 기초·롤링마크 · 최소/최대 철근 개수 · 용도별 부재 추정'}
+];
+document.getElementById('tools').innerHTML = TOOLS.map(function(t){
+  var v = V[t.id] || {};
+  return '<a class="tool" href="' + t.href + '"><img src="' + t.id + '/icon.png" alt=""><div><div class="nm">' + t.name + '</div><div class="ds">' + t.desc + '</div>' +
+    '<span class="vr">' + (v.v || '') + ' <small>· ' + (v.date || '') + '</small></span>' + (v.note ? '<div class="nt">최근: ' + v.note + '</div>' : '') + '</div><div class="go">›</div></a>';
+}).join('');
+var a = V.app || {};
+document.getElementById('foot').textContent = 'ASCL 필드킷 ' + (a.v || '') + ' · ' + (a.date || '') + ' · made by 김도훈';
+function setOff(ok, txt){ document.getElementById('offDot').className = 'dot' + (ok ? ' on' : ''); document.getElementById('offTxt').textContent = txt; }
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(function(){ return navigator.serviceWorker.ready; })
+    .then(function(){ return caches.has('ascl-fieldkit-1'); })
+    .then(function(ok){ setOff(ok, ok ? '오프라인 사용 준비됨 (세 도구 모두 저장됨)' : '저장 중… 인터넷 연결 상태에서 잠시 기다려 주세요'); })
+    .catch(function(){ setOff(false, '오프라인 저장을 지원하지 않는 환경입니다'); });
+} else setOff(false, '오프라인 저장을 지원하지 않는 브라우저입니다');
+</script>
+</body>
+</html>

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="비파괴강도">
+<meta name="theme-color" content="#007aff">
+<link rel="manifest" href="../manifest.json">
+<link rel="icon" type="image/png" href="../icon-192.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<title>콘크리트 비파괴강도 계산기</title>
+<script src="../versions.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#f2f2f7;color:#1c1c1e;min-height:100vh}
+.header{background:#fff;padding:16px 16px 12px;border-bottom:0.5px solid #e0e0e5;position:sticky;top:0;z-index:10}
+.header h1{font-size:17px;font-weight:600;text-align:center}
+.header p{font-size:11px;color:#8e8e93;text-align:center;margin-top:2px}
+.ver{font-size:10px;color:#aeaeb2;text-align:center;margin-top:3px;letter-spacing:.2px}
+.tab-wrap{background:#fff;padding:10px 12px 0;position:sticky;top:72px;z-index:9;border-bottom:0.5px solid #e0e0e5}
+.tab-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+.tab{padding:8px 2px 10px;border:none;background:transparent;font-size:11px;color:#8e8e93;cursor:pointer;text-align:center;line-height:1.4;border-bottom:2px solid transparent}
+.tab.active{color:#007aff;font-weight:600;border-bottom:2px solid #007aff}
+.content{padding:16px 14px 40px;max-width:560px;margin:0 auto}
+.section{display:none}.section.active{display:block}
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.card-title{font-size:14px;font-weight:600;margin-bottom:3px}
+.card-subtitle{font-size:11px;color:#8e8e93;margin-bottom:12px}
+.formula-box{background:#f2f2f7;border-radius:8px;padding:10px 13px;font-size:12.5px;margin-bottom:14px;font-family:'Menlo','Courier New',monospace;line-height:1.7;white-space:pre-wrap}
+
+/* 모드 전환 (추정 / 역계산) */
+.seg{display:grid;grid-template-columns:1fr 1fr;background:#e9e9ee;border-radius:10px;padding:3px;margin-bottom:14px}
+.seg button{border:none;background:transparent;padding:9px 4px;font-size:13px;color:#3c3c43;border-radius:8px;cursor:pointer;font-weight:500}
+.seg button.active{background:#fff;color:#007aff;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+.field{margin-bottom:14px}
+.field>label{display:block;font-size:13px;color:#3c3c43;margin-bottom:6px;font-weight:500}
+.num-in{width:100%;padding:11px 13px;border:1px solid #e0e0e5;border-radius:10px;font-size:16px;background:#fff;color:#1c1c1e;outline:none;-webkit-appearance:none}
+.num-in:focus{border-color:#007aff}
+.with-unit{position:relative}
+.with-unit .num-in{padding-right:52px}
+.with-unit .unit{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:13px;color:#8e8e93;pointer-events:none}
+.hint{font-size:11px;color:#8e8e93;margin-top:5px}
+
+/* 각도 5칸 */
+.angle-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+.angle-btn{padding:9px 2px;border:1px solid #e0e0e5;border-radius:10px;background:#fff;font-size:11.5px;color:#3c3c43;cursor:pointer;text-align:center;line-height:1.35}
+.angle-btn b{display:block;font-size:13px;font-weight:600}
+.angle-btn.selected{border-color:#007aff;background:#e8f0fe;color:#007aff}
+.alpha-line{background:#f2f2f7;border-radius:8px;padding:8px 12px;font-size:12.5px;font-family:'Menlo','Courier New',monospace;margin-top:8px}
+
+.k-mode-bar{display:flex;gap:6px;margin-bottom:8px}
+.k-mode-btn{flex:1;padding:9px 0;border:1px solid #e0e0e5;border-radius:10px;background:#fff;font-size:12px;color:#8e8e93;cursor:pointer}
+.k-mode-btn.active{border-color:#007aff;background:#e8f0fe;color:#007aff;font-weight:600}
+.k-badge{background:#f2f2f7;border-radius:8px;padding:8px 12px;font-size:12.5px;font-family:'Menlo','Courier New',monospace;margin-top:7px}
+.k-err{font-size:12px;color:#ff3b30;margin-top:5px}
+
+/* 결과 */
+.result{border:1.5px solid #007aff;border-radius:12px;padding:16px;margin-top:4px}
+.result.empty{border-style:dashed;border-color:#c7c7cc;color:#8e8e93;font-size:13px;text-align:center;padding:18px}
+.result.warn{border-color:#ff9500}
+.res-head{text-align:center;padding-bottom:12px;border-bottom:0.5px solid #e0e0e5;margin-bottom:10px}
+.res-label{font-size:12.5px;color:#8e8e93;margin-bottom:3px}
+.res-value{font-size:36px;font-weight:700;color:#007aff;font-variant-numeric:tabular-nums}
+.result.warn .res-value{color:#ff9500}
+.res-unit{font-size:16px;color:#8e8e93;margin-left:4px}
+.res-note{font-size:12px;color:#3c3c43;margin-top:6px;line-height:1.5}
+.step{display:grid;grid-template-columns:22px 1fr;gap:8px;padding:7px 0;border-bottom:0.5px dashed #e0e0e5}
+.step:last-child{border-bottom:none}
+.step .no{width:20px;height:20px;border-radius:50%;background:#007aff;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.step .tt{font-size:12px;color:#8e8e93;margin-bottom:2px}
+.step .mono{font-family:'Menlo','Courier New',monospace;font-size:12.5px;line-height:1.7;white-space:pre-wrap;word-break:break-all}
+.step .mono b{color:#007aff}
+
+/* 초음파 */
+.method-bar{display:flex;gap:6px;margin-bottom:14px}
+.method-btn{flex:1;padding:10px 0;border:1px solid #e0e0e5;border-radius:10px;background:#fff;font-size:13px;color:#8e8e93;cursor:pointer}
+.method-btn.active{border-color:#007aff;background:#e8f0fe;color:#007aff;font-weight:600}
+.pt-grid{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(0,1fr);gap:7px;align-items:center;margin-bottom:8px}
+.pt-grid.head{margin-bottom:5px}
+.pt-grid .ch{font-size:11px;color:#8e8e93;text-align:center}
+.pt-grid .no{font-size:13px;color:#8e8e93;text-align:center;font-weight:500}
+.pt-grid input{padding:10px;border:1px solid #e0e0e5;border-radius:10px;font-size:15px;background:#fff;outline:none;width:100%}
+.pt-grid input:focus{border-color:#007aff}
+.multi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}
+.cell{background:#f2f2f7;border-radius:10px;padding:8px 4px;text-align:center}
+.cell.off{opacity:.45}
+.cell .cl{font-size:11px;color:#8e8e93}
+.cell .cv{font-size:19px;font-weight:700;color:#007aff;font-variant-numeric:tabular-nums;margin:2px 0}
+.cell .cv small{font-size:11px;color:#8e8e93;font-weight:500}
+.cell .cs{font-size:10.5px;color:#3c3c43;line-height:1.5}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;padding:0 6px;border-radius:8px}
+.tag.ok{background:#e3f7e8;color:#1a7f37}.tag.ng{background:#ffe5e3;color:#d70015}
+.ratio-box{background:#f2f2f7;border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.ratio-title{font-size:12px;color:#8e8e93;font-weight:500;margin-bottom:4px}
+.ratio-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:0.5px solid #e0e0e5;font-size:13px}
+.ratio-row:last-child{border-bottom:none}
+.ratio-row span:last-child{font-family:'Menlo','Courier New',monospace;font-weight:600}
+.hidden{display:none !important}
+.fk-home{position:absolute;right:12px;top:calc(10px + env(safe-area-inset-top,0px));z-index:40;font-size:12px;font-weight:700;text-decoration:none;padding:5px 10px;border-radius:14px;background:#e8f0fe;color:#007aff;border:1px solid #c7d9fb}
+</style>
+</head>
+<body>
+<div class="header">
+<a class="fk-home" href="../">⌂ 홈</a>
+  <h1>콘크리트 비파괴강도 계산기</h1>
+  <p>슈미트해머법 · 초음파속도법</p>
+  <div class="ver" id="app-ver"></div>
+</div>
+<div class="tab-wrap">
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('general',this)">일반<br><span style="font-size:9px;opacity:.7">30MPa↓</span></button>
+    <button class="tab" onclick="switchTab('science',this)">과학기술부<br><span style="font-size:9px;opacity:.7">30MPa↑</span></button>
+    <button class="tab" onclick="switchTab('kalis',this)">KALIS<br><span style="font-size:9px;opacity:.7">40MPa↑</span></button>
+    <button class="tab" onclick="switchTab('ultrasonic',this)">초음파<br><span style="font-size:9px;opacity:.7">직접 · 표면</span></button>
+  </div>
+</div>
+
+<div class="content">
+  <div id="section-general" class="section active"></div>
+  <div id="section-science" class="section"></div>
+  <div id="section-kalis" class="section"></div>
+
+  <div id="section-ultrasonic" class="section">
+    <div class="card" id="us-card">
+      <div class="card-title">초음파속도법 강도 추정식</div>
+      <div class="card-subtitle">일본재료학회식</div>
+      <div class="formula-box" id="us-formula"></div>
+      <div class="seg">
+        <button id="us-mode-fwd" class="active" onclick="setUSMode('fwd')">강도 추정</button>
+        <button id="us-mode-rev" onclick="setUSMode('rev')">역계산 (목표강도→Vd)</button>
+      </div>
+      <div class="method-bar">
+        <button class="method-btn active" id="btn-direct" onclick="switchMethod('direct')">직접법</button>
+        <button class="method-btn" id="btn-surface" onclick="switchMethod('surface')">표면법</button>
+      </div>
+
+      <div class="field rev-only hidden">
+        <label>목표 압축강도 F</label>
+        <div class="with-unit"><input class="num-in" type="number" id="us-target" placeholder="예) 24" step="0.1" inputmode="decimal" oninput="updateUS()"><span class="unit">MPa</span></div>
+      </div>
+
+      <div id="direct-inputs">
+        <div class="field">
+          <label>L — 측정 거리</label>
+          <div class="with-unit"><input class="num-in" type="number" id="d-L" placeholder="예) 300" step="1" inputmode="decimal" oninput="updateUS()"><span class="unit">mm</span></div>
+        </div>
+        <div class="field t-only">
+          <label>t — 전파시간 <span class="t-hint hidden" style="color:#8e8e93;font-weight:400">(선택 · 입력 시 판정)</span></label>
+          <div class="with-unit"><input class="num-in" type="number" id="d-t" placeholder="예) 72.1" step="0.1" inputmode="decimal" oninput="updateUS()"><span class="unit">μs</span></div>
+        </div>
+      </div>
+
+      <div id="surface-inputs" class="hidden">
+        <div class="pt-grid head"><div></div><div class="ch">L (mm)</div><div class="ch t-only">t (μs) <span class="t-hint hidden">· 선택</span></div></div>
+        <div class="pt-grid"><span class="no">①</span><input type="number" id="s-L1" placeholder="100" inputmode="decimal" oninput="updateUS()"><input class="t-only" type="number" id="s-t1" placeholder="24.0" step="0.1" inputmode="decimal" oninput="updateUS()"></div>
+        <div class="pt-grid"><span class="no">②</span><input type="number" id="s-L2" placeholder="150" inputmode="decimal" oninput="updateUS()"><input class="t-only" type="number" id="s-t2" placeholder="36.0" step="0.1" inputmode="decimal" oninput="updateUS()"></div>
+        <div class="pt-grid"><span class="no">③</span><input type="number" id="s-L3" placeholder="200" inputmode="decimal" oninput="updateUS()"><input class="t-only" type="number" id="s-t3" placeholder="48.0" step="0.1" inputmode="decimal" oninput="updateUS()"></div>
+        <div class="ratio-box hidden" id="ratio-box">
+          <div class="ratio-title">측점 간 속도 비율 (100%에 가까울수록 균일)</div>
+          <div class="ratio-row"><span>① ÷ ②</span><span id="ratio-12">—</span></div>
+          <div class="ratio-row"><span>② ÷ ③</span><span id="ratio-23">—</span></div>
+          <div class="ratio-row"><span>③ ÷ ①</span><span id="ratio-31">—</span></div>
+        </div>
+      </div>
+
+      <div id="us-result"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 버전 정보 — 수정해서 올릴 때마다 여기와 sw.js의 CACHE_NAME 숫자를 같이 올려주세요 ===== */
+(function(){ var V = (window.FK_VERSIONS || {})['ndt'] || {}; var el = document.getElementById('app-ver'); if (el) el.textContent = (V.v || '') + ' · ' + (V.date || '') + ' · made by ' + (V.author || '김도훈'); })();
+// 헤더 높이에 맞춰 탭 고정 위치 조정
+function fitTabs(){ document.querySelector('.tab-wrap').style.top = document.querySelector('.header').offsetHeight + 'px'; }
+fitTabs(); window.addEventListener('resize', fitTabs);
+/* =========================================================
+   공통 표
+   ========================================================= */
+// 각도보정계수 α — R₀ 10단위 기준값 (상향90, 상향45, 하향45, 하향90), 사이는 직선보간
+var ALPHA_ANCHOR = {
+  20:{up90:-5.4, up45:-3.5, down45:2.5, down90:3.4},
+  30:{up90:-4.7, up45:-3.1, down45:2.3, down90:3.1},
+  40:{up90:-3.9, up45:-2.6, down45:2.0, down90:2.7},
+  50:{up90:-3.1, up45:-2.1, down45:1.6, down90:2.2},
+  60:{up90:-2.3, up45:-1.6, down45:1.3, down90:1.7}
+};
+var ANGLE_NAME = {up90:'상향 90°', up45:'상향 45°', '0':'수평', down45:'하향 45°', down90:'하향 90°'};
+
+// R₀ 20~60 정수별 표 생성 (기존 앱과 동일하게 R₀를 정수로 반올림해 조회)
+var alphaTable = {};
+(function(){
+  var keys = ['up90','up45','down45','down90'];
+  for(var r=20; r<=60; r++){
+    var lo = Math.min(50, Math.floor(r/10)*10), hi = lo+10, row = {};
+    keys.forEach(function(k){
+      var a = ALPHA_ANCHOR[lo][k], b = ALPHA_ANCHOR[hi][k];
+      row[k] = Math.round((a + (b-a)*(r-lo)/10)*100)/100;
+    });
+    alphaTable[r] = row;
+  }
+})();
+
+function alphaOf(r0, angle){
+  if(angle==='0') return {val:0, label:'α = 0 (수평)'};
+  var r = Math.round(r0);
+  if(r < 20) return {val:0, label:'α = 0 (R₀<20, 표 범위 외)'};
+  if(r > 60) return {val:0, label:'α = 0 (R₀>60, 표 범위 외)'};
+  var v = alphaTable[r][angle];
+  return {val:v, label:'α = '+(v>0?'+':'')+v+' ('+ANGLE_NAME[angle]+', R₀='+r+')'};
+}
+
+var kTable=[
+  [4,1.90],[5,1.84],[6,1.78],[7,1.72],[8,1.67],[9,1.61],[10,1.55],[11,1.49],[12,1.45],[13,1.40],
+  [14,1.36],[15,1.32],[16,1.28],[17,1.25],[18,1.22],[19,1.18],[20,1.15],[21,1.12],[22,1.10],
+  [23,1.08],[24,1.06],[25,1.04],[26,1.02],[27,1.01],[28,1.00],[29,0.99],[30,0.99],[32,0.98],
+  [34,0.96],[36,0.95],[38,0.94],[40,0.93],[42,0.92],[44,0.91],[46,0.90],[47,0.90],[48,0.90],
+  [50,0.89],[52,0.88],[54,0.87],[56,0.86],[58,0.86],[60,0.86],[62,0.85],[64,0.85],[66,0.85],
+  [68,0.84],[70,0.84],[72,0.84],[74,0.83],[76,0.83],[78,0.82],[80,0.82],[82,0.82],[84,0.81],
+  [86,0.81],[88,0.80],[90,0.80],[100,0.78],[125,0.76],[150,0.74],[175,0.73],[200,0.72],
+  [250,0.71],[300,0.70],[400,0.68],[500,0.67],[750,0.66],[1000,0.65],[2000,0.64],[3000,0.63]
+];
+function getKFromDays(days){
+  if(days<4) return null;
+  if(days>=3000) return 0.63;
+  for(var i=kTable.length-1;i>=0;i--){
+    if(days>=kTable[i][0]){
+      if(i===kTable.length-1) return kTable[i][1];
+      var d0=kTable[i][0],k0=kTable[i][1],d1=kTable[i+1][0],k1=kTable[i+1][1];
+      return +(k0+(days-d0)/(d1-d0)*(k1-k0)).toFixed(3);
+    }
+  }
+  return null;
+}
+function parseDate8(str){
+  if(!/^\d{8}$/.test(str)) return null;
+  var y=+str.slice(0,4),m=+str.slice(4,6),d=+str.slice(6,8);
+  var dt=new Date(y,m-1,d);
+  if(dt.getFullYear()!==y||dt.getMonth()!==m-1||dt.getDate()!==d) return null;
+  return dt;
+}
+function formatDate(dt){ return dt.getFullYear()+'.'+String(dt.getMonth()+1).padStart(2,'0')+'.'+String(dt.getDate()).padStart(2,'0'); }
+function getTodayDays(dt){ var t=new Date(); t.setHours(0,0,0,0); return Math.floor((t-dt)/86400000); }
+function val(id){ var el=document.getElementById(id); return el ? parseFloat(el.value) : NaN; }
+function fx(n,d){ return n.toFixed(d); }
+
+/* =========================================================
+   슈미트해머 3개 식 (정방향 / 역방향)
+   ========================================================= */
+var MODELS = {
+  general:{
+    title:'일반콘크리트 강도 추정식', sub:'일본건축학회식 · 적용범위 30MPa 미만',
+    formula:'fck = (7.3×(R₀+α)+100) × 0.098 × k',
+    fwd:function(Ra,k){ return (7.3*Ra+100)*0.098*k; },
+    inv:function(f,k){ return (f/(0.098*k)-100)/7.3; },
+    fwdStr:function(Ra,k){ return '(7.3×'+fx(Ra,2)+'+100)×0.098×'+fx(k,3); },
+    invStr:function(f,k){ return '('+f+'÷(0.098×'+fx(k,3)+') − 100) ÷ 7.3'; }
+  },
+  science:{
+    title:'과학기술부 추정식', sub:'적용범위 30MPa 이상',
+    formula:'fck = ((15.2×(R₀+α) − 112.8) × 0.1) × k',
+    fwd:function(Ra,k){ return ((15.2*Ra-112.8)*0.1)*k; },
+    inv:function(f,k){ return (f/(0.1*k)+112.8)/15.2; },
+    fwdStr:function(Ra,k){ return '((15.2×'+fx(Ra,2)+'−112.8)×0.1)×'+fx(k,3); },
+    invStr:function(f,k){ return '('+f+'÷(0.1×'+fx(k,3)+') + 112.8) ÷ 15.2'; }
+  },
+  kalis:{
+    title:'KALIS 추정식', sub:'적용범위 40MPa 이상',
+    formula:'fck = (1.3343×(R₀+α) + 8.1977) × k',
+    fwd:function(Ra,k){ return (1.3343*Ra+8.1977)*k; },
+    inv:function(f,k){ return (f/k-8.1977)/1.3343; },
+    fwdStr:function(Ra,k){ return '(1.3343×'+fx(Ra,2)+'+8.1977)×'+fx(k,3); },
+    invStr:function(f,k){ return '('+f+'÷'+fx(k,3)+' − 8.1977) ÷ 1.3343'; }
+  }
+};
+var S = {
+  general:{mode:'fwd', angle:'0', kMode:'direct'},
+  science:{mode:'fwd', angle:'0', kMode:'direct'},
+  kalis:{mode:'fwd', angle:'0', kMode:'direct'}
+};
+
+function buildSchmidt(id){
+  var M = MODELS[id];
+  var angles = [['up90','상향','90°'],['up45','상향','45°'],['0','수평','0°'],['down45','하향','45°'],['down90','하향','90°']];
+  document.getElementById('section-'+id).innerHTML = `
+  <div class="card">
+    <div class="card-title">${M.title}</div>
+    <div class="card-subtitle">${M.sub}</div>
+    <div class="formula-box">${M.formula}</div>
+    <div class="seg">
+      <button id="mode-fwd-${id}" class="active" onclick="setMode('${id}','fwd')">강도 추정</button>
+      <button id="mode-rev-${id}" onclick="setMode('${id}','rev')">역계산 (목표강도→R₀)</button>
+    </div>
+    <div class="field" id="wrap-r0-${id}">
+      <label>R₀ — 평균 반발경도</label>
+      <input class="num-in" type="number" id="r0-${id}" placeholder="예) 32.5" step="0.1" inputmode="decimal" oninput="update('${id}')">
+    </div>
+    <div class="field hidden" id="wrap-target-${id}">
+      <label>목표 압축강도 fck</label>
+      <div class="with-unit"><input class="num-in" type="number" id="target-${id}" placeholder="예) 24" step="0.1" inputmode="decimal" oninput="update('${id}')"><span class="unit">MPa</span></div>
+    </div>
+    <div class="field">
+      <label>α — 각도보정계수 (타격 방향)</label>
+      <div class="angle-grid">
+        ${angles.map(a=>`<button class="angle-btn${a[0]==='0'?' selected':''}" data-angle="${a[0]}" onclick="selectAngle('${id}',this)">${a[1]}<b>${a[2]}</b></button>`).join('')}
+      </div>
+      <div class="alpha-line" id="alpha-${id}">α = 0 (수평)</div>
+    </div>
+    <div class="field">
+      <label>k — 재령계수</label>
+      <div class="k-mode-bar">
+        <button class="k-mode-btn active" id="km-direct-${id}" onclick="switchKMode('${id}','direct')">직접 입력</button>
+        <button class="k-mode-btn" id="km-date-${id}" onclick="switchKMode('${id}','date')">준공날짜 입력</button>
+      </div>
+      <div id="k-direct-wrap-${id}">
+        <input class="num-in" type="number" id="k-manual-${id}" placeholder="예) 0.63" step="0.01" value="0.63" inputmode="decimal" oninput="update('${id}')">
+        <div class="hint">재령 3000일 이상 = 0.63 (최솟값)</div>
+      </div>
+      <div id="k-date-wrap-${id}" class="hidden">
+        <input class="num-in" type="text" id="k-date-${id}" placeholder="예) 20260427" maxlength="8" inputmode="numeric" oninput="this.value=this.value.replace(/\\D/g,'');update('${id}')">
+        <div class="hint">8자리 숫자 입력 (YYYYMMDD)</div>
+        <div id="k-date-info-${id}"></div>
+      </div>
+    </div>
+    <div id="result-${id}"></div>
+  </div>`;
+  update(id);
+}
+
+function setMode(id, mode){
+  S[id].mode = mode;
+  document.getElementById('mode-fwd-'+id).classList.toggle('active', mode==='fwd');
+  document.getElementById('mode-rev-'+id).classList.toggle('active', mode==='rev');
+  document.getElementById('wrap-r0-'+id).classList.toggle('hidden', mode!=='fwd');
+  document.getElementById('wrap-target-'+id).classList.toggle('hidden', mode!=='rev');
+  update(id);
+}
+function selectAngle(id, btn){
+  btn.parentNode.querySelectorAll('.angle-btn').forEach(function(b){ b.classList.remove('selected'); });
+  btn.classList.add('selected');
+  S[id].angle = btn.dataset.angle;
+  update(id);
+}
+function switchKMode(id, mode){
+  S[id].kMode = mode;
+  document.getElementById('km-direct-'+id).classList.toggle('active', mode==='direct');
+  document.getElementById('km-date-'+id).classList.toggle('active', mode==='date');
+  document.getElementById('k-direct-wrap-'+id).classList.toggle('hidden', mode!=='direct');
+  document.getElementById('k-date-wrap-'+id).classList.toggle('hidden', mode!=='date');
+  update(id);
+}
+
+// k 값과 표시용 설명을 함께 구함
+function readK(id){
+  if(S[id].kMode==='direct'){
+    var k = val('k-manual-'+id);
+    return (isNaN(k)||k<=0) ? {k:NaN} : {k:k, label:'k = '+fx(k,3)+' (직접입력)'};
+  }
+  var s = document.getElementById('k-date-'+id).value;
+  var info = document.getElementById('k-date-info-'+id);
+  if(s.length<8){
+    var p = s.slice(0,4)+(s.length>4?'.'+s.slice(4,6):'')+(s.length>6?'.'+s.slice(6,8):'');
+    info.innerHTML = p ? '<div class="hint">'+p+'</div>' : '';
+    return {k:NaN};
+  }
+  var dt = parseDate8(s);
+  if(!dt){ info.innerHTML='<div class="k-err">올바른 날짜를 입력해 주세요</div>'; return {k:NaN}; }
+  var days = getTodayDays(dt);
+  if(days<4){ info.innerHTML='<div class="k-badge">재령 '+days+'일 — 표 범위(4일) 미만</div>'; return {k:NaN}; }
+  var k = getKFromDays(days);
+  info.innerHTML = '<div class="k-badge">'+formatDate(dt)+' · 재령 '+days+'일 → k = '+fx(k,3)+'</div>';
+  return {k:k, label:'k = '+fx(k,3)+' (재령 '+days+'일, 표 2.4.2)'};
+}
+
+function step(no, title, body){
+  return '<div class="step"><span class="no">'+no+'</span><div><div class="tt">'+title+'</div><div class="mono">'+body+'</div></div></div>';
+}
+function emptyResult(msg){ return '<div class="result empty">'+msg+'</div>'; }
+
+// 역계산: R₀ + α(R₀) = Ra 를 만족하는 R₀ 를 반복으로 구함 (α가 R₀에 따라 바뀌므로)
+function solveR0(Ra, angle){
+  var r = Ra;
+  for(var i=0;i<30;i++){
+    var next = Ra - alphaOf(r, angle).val;
+    if(Math.abs(next-r) < 1e-9) break;
+    r = next;
+  }
+  return r;
+}
+
+function update(id){
+  var M = MODELS[id], st = S[id];
+  var box = document.getElementById('result-'+id);
+  var alphaEl = document.getElementById('alpha-'+id);
+  var K = readK(id);
+
+  if(st.mode==='fwd'){
+    var r0 = val('r0-'+id);
+    alphaEl.textContent = isNaN(r0) ? (st.angle==='0' ? 'α = 0 (수평)' : 'R₀를 입력하면 α가 표에서 조회됩니다') : alphaOf(r0, st.angle).label;
+    if(isNaN(r0) || isNaN(K.k)){ box.innerHTML = emptyResult('R₀와 재령계수를 입력하면 바로 계산됩니다.'); return; }
+    var a = alphaOf(r0, st.angle), Ra = r0 + a.val, f = M.fwd(Ra, K.k);
+    box.innerHTML = '<div class="result">'
+      + '<div class="res-head"><div class="res-label">추정 압축강도 fck</div><span class="res-value">'+fx(f,2)+'</span><span class="res-unit">MPa</span></div>'
+      + step(1,'보정 반발경도','R₀ = '+fx(r0,1)+'\n'+a.label+'\nR₀+α = <b>'+fx(Ra,2)+'</b>')
+      + step(2,'재령계수', K.label)
+      + step(3,'추정식 대입', M.fwdStr(Ra,K.k)+'\n= <b>'+fx(f,2)+' MPa</b>')
+      + '</div>';
+  } else {
+    var target = val('target-'+id);
+    if(isNaN(target) || target<=0 || isNaN(K.k)){
+      alphaEl.textContent = st.angle==='0' ? 'α = 0 (수평)' : '역계산 결과 R₀ 기준으로 α가 조회됩니다';
+      box.innerHTML = emptyResult('목표 강도와 재령계수를 입력하면 필요한 R₀를 계산합니다.');
+      return;
+    }
+    var RaReq = M.inv(target, K.k);
+    var r0Req = solveR0(RaReq, st.angle);
+    var aReq = alphaOf(r0Req, st.angle);
+    alphaEl.textContent = aReq.label;
+    var check = M.fwd(r0Req + aReq.val, K.k);
+    var bad = r0Req <= 0;
+    box.innerHTML = '<div class="result'+(bad?' warn':'')+'">'
+      + '<div class="res-head"><div class="res-label">필요 평균 반발경도 R₀ ('+ANGLE_NAME[st.angle]+' 타격)</div>'
+      + '<span class="res-value">'+(bad?'—':fx(r0Req,1))+'</span>'
+      + '<div class="res-note">'+(bad ? '이 식으로는 목표 강도를 만족하는 R₀가 나오지 않습니다 (적용범위 확인).' : '현장 평균 R₀가 <b>'+fx(r0Req,1)+' 이상</b>이면 목표 '+target+' MPa 이상으로 추정됩니다.')+'</div></div>'
+      + step(1,'재령계수', K.label)
+      + step(2,'식을 R₀+α 로 정리', 'R₀+α = '+M.invStr(target,K.k)+'\n     = <b>'+fx(RaReq,2)+'</b>')
+      + step(3,'각도보정 반영', aReq.label+'\nR₀ = '+fx(RaReq,2)+' − ('+aReq.val+') = <b>'+fx(r0Req,2)+'</b>')
+      + (bad ? '' : step(4,'검산', M.fwdStr(r0Req+aReq.val,K.k)+'\n= '+fx(check,2)+' MPa'))
+      + '</div>';
+  }
+}
+
+/* =========================================================
+   초음파속도법
+   F = (102Vd − 117) × 0.098 [MPa]
+   ========================================================= */
+var US = {mode:'fwd', method:'direct'};
+var US_F = function(vd){ return (102*vd-117)*0.098; };
+var US_INV = function(F){ return (F/0.098+117)/102; };
+
+function setUSMode(mode){
+  US.mode = mode;
+  document.getElementById('us-mode-fwd').classList.toggle('active', mode==='fwd');
+  document.getElementById('us-mode-rev').classList.toggle('active', mode==='rev');
+  document.getElementById('us-card').classList.toggle('rev', mode==='rev');
+  document.querySelectorAll('.rev-only').forEach(function(el){ el.classList.toggle('hidden', mode!=='rev'); });
+  updateUS();
+}
+function switchMethod(m){
+  US.method = m;
+  document.getElementById('btn-direct').classList.toggle('active', m==='direct');
+  document.getElementById('btn-surface').classList.toggle('active', m==='surface');
+  document.getElementById('direct-inputs').classList.toggle('hidden', m!=='direct');
+  document.getElementById('surface-inputs').classList.toggle('hidden', m!=='surface');
+  updateUS();
+}
+
+var CIRC = ['①','②','③'];
+function judgeTag(ok){ return ok ? '<span class="tag ok">적합</span>' : '<span class="tag ng">미달</span>'; }
+
+// 측정값 읽기: 직접법은 1점, 표면법은 3점
+function readPoints(){
+  if(US.method==='direct') return [{no:'', L:val('d-L'), t:val('d-t'), k:1}];
+  return [1,2,3].map(function(i){ return {no:CIRC[i-1], L:val('s-L'+i), t:val('s-t'+i), k:1.05}; });
+}
+function okNum(v){ return !isNaN(v) && v>0; }
+
+function updateUS(){
+  var surface = US.method==='surface';
+  document.getElementById('us-formula').textContent = 'F = (102Vd − 117) × 0.098  [MPa]\n'
+    + (surface ? 'Vd = (L ÷ t) × 1.05  [km/s, 표면법]' : 'Vd = L(mm) ÷ t(μs)  [km/s]');
+  document.querySelectorAll('.t-hint').forEach(function(el){ el.classList.toggle('hidden', US.mode!=='rev'); });
+  var box = document.getElementById('us-result');
+  var ratioBox = document.getElementById('ratio-box');
+  ratioBox.classList.add('hidden');
+  var pts = readPoints();
+  pts.forEach(function(p){
+    p.vd = (okNum(p.L) && okNum(p.t)) ? p.L/p.t*p.k : null;
+    p.F = p.vd!==null ? US_F(p.vd) : null;
+  });
+  var vdStr = function(p){ return surface ? p.L+'÷'+p.t+'×1.05' : p.L+'÷'+p.t; };
+
+  /* ---------- 역계산: 목표강도 → 필요 Vd, 측점별 허용 t ---------- */
+  if(US.mode==='rev'){
+    var F = val('us-target');
+    if(!okNum(F)){ box.innerHTML = emptyResult('목표 강도를 입력하면 필요한 Vd와 측점별 허용 전파시간을 계산합니다.'); return; }
+    var vReq = US_INV(F);
+    var withL = pts.filter(function(p){ return okNum(p.L); });
+    var cells = withL.map(function(p){
+      var tMax = p.L*p.k/vReq;
+      var judged = p.vd!==null;
+      return '<div class="cell">'
+        + '<div class="cl">'+(p.no||'측점')+' L='+p.L+'</div>'
+        + '<div class="cv">≤ '+fx(tMax,1)+'<small> μs</small></div>'
+        + (judged ? '<div class="cs">측정 '+p.t+'μs · '+fx(p.F,2)+'MPa '+judgeTag(p.t<=tMax)+'</div>' : '')
+        + '</div>';
+    }).join('');
+    var lines = withL.map(function(p){
+      var tMax = p.L*p.k/vReq;
+      var s = (p.no ? p.no+' ' : '')+'t ≤ L'+(surface?'×1.05':'')+' ÷ Vd = '+p.L+(surface?'×1.05':'')+' ÷ '+fx(vReq,4)+' = <b>'+fx(tMax,1)+' μs</b>';
+      if(p.vd!==null) s += '\n   측정 t='+p.t+' → Vd='+fx(p.vd,4)+' → F='+fx(p.F,2)+' MPa ('+(p.t<=tMax?'적합':'미달')+')';
+      return s;
+    });
+    box.innerHTML = '<div class="result">'
+      + '<div class="res-head"><div class="res-label">목표 '+F+' MPa 에 필요한 초음파속도</div><span class="res-value">'+fx(vReq,3)+'</span><span class="res-unit">km/s</span>'
+      + (cells ? '<div class="multi">'+cells+'</div>' : '<div class="res-note">측정 거리 L을 입력하면 측점별 허용 전파시간이 표시됩니다.</div>')
+      + '</div>'
+      + step(1,'식을 Vd 로 정리','Vd = (F ÷ 0.098 + 117) ÷ 102\n   = ('+F+' ÷ 0.098 + 117) ÷ 102\n   = <b>'+fx(vReq,4)+' km/s</b>')
+      + (lines.length ? step(2,'측점별 허용 전파시간'+(pts.some(function(p){return p.vd!==null;})?' · 측정값 판정':''), lines.join('\n')) : '')
+      + '<div class="hint" style="margin-top:8px">측정 t를 함께 입력하면 측점별로 적합/미달을 표시합니다.</div>'
+      + '</div>';
+    return;
+  }
+
+  /* ---------- 정방향: 측점별 Vd → 측점별 강도 ---------- */
+  var done = pts.filter(function(p){ return p.vd!==null; });
+  if(!done.length){
+    box.innerHTML = emptyResult(surface ? '측점별로 L과 t를 입력하면 측점마다 바로 강도가 계산됩니다.' : 'L과 t를 입력하면 바로 계산됩니다.');
+    return;
+  }
+
+  if(!surface){
+    var p = pts[0];
+    box.innerHTML = '<div class="result">'
+      + '<div class="res-head"><div class="res-label">추정 압축강도 F</div><span class="res-value">'+fx(p.F,2)+'</span><span class="res-unit">MPa</span>'
+      + '<div class="res-note">Vd = '+fx(p.vd,4)+' km/s</div></div>'
+      + step(1,'Vd 산정 (직접법)','Vd = L ÷ t = '+vdStr(p)+'\n   = <b>'+fx(p.vd,4)+' km/s</b>')
+      + step(2,'추정식 대입','F = (102 × Vd − 117) × 0.098\n  = (102 × '+fx(p.vd,4)+' − 117) × 0.098\n  = ('+fx(102*p.vd,2)+' − 117) × 0.098')
+      + step(3,'추정 압축강도','F = <b>'+fx(p.F,2)+' MPa</b>')
+      + '</div>';
+    return;
+  }
+
+  // 표면법: 측점마다 강도
+  var cells2 = pts.map(function(p){
+    return '<div class="cell'+(p.F===null?' off':'')+'">'
+      + '<div class="cl">'+p.no+(okNum(p.L)?' L='+p.L:'')+'</div>'
+      + '<div class="cv">'+(p.F===null?'—':fx(p.F,2))+'<small> MPa</small></div>'
+      + '<div class="cs">'+(p.vd===null?'입력 대기':'Vd '+fx(p.vd,3))+'</div></div>';
+  }).join('');
+  var all3 = done.length===3;
+  var avgVd = done.reduce(function(s,p){ return s+p.vd; },0)/done.length;
+  var avgF = done.reduce(function(s,p){ return s+p.F; },0)/done.length;
+  if(all3){
+    document.getElementById('ratio-12').textContent = fx(pts[0].vd/pts[1].vd*100,2)+'%';
+    document.getElementById('ratio-23').textContent = fx(pts[1].vd/pts[2].vd*100,2)+'%';
+    document.getElementById('ratio-31').textContent = fx(pts[2].vd/pts[0].vd*100,2)+'%';
+    ratioBox.classList.remove('hidden');
+  }
+  box.innerHTML = '<div class="result">'
+    + '<div class="res-head"><div class="res-label">측점별 추정 압축강도 F</div><div class="multi">'+cells2+'</div>'
+    + '<div class="res-note">평균 F = <b>'+fx(avgF,2)+' MPa</b> (입력된 '+done.length+'개 측점, 평균 Vd '+fx(avgVd,4)+' km/s)</div></div>'
+    + step(1,'측점별 Vd 산정 (km/s)', pts.map(function(p){ return p.no+' '+(p.vd===null?'—':vdStr(p)+' = <b>'+fx(p.vd,4)+'</b>'); }).join('\n'))
+    + step(2,'측점별 추정식 대입 F = (102×Vd − 117)×0.098', pts.map(function(p){ return p.no+' '+(p.F===null?'—':'(102×'+fx(p.vd,4)+' − 117)×0.098 = <b>'+fx(p.F,2)+' MPa</b>'); }).join('\n'))
+    + step(3,'평균', 'F = ('+done.map(function(p){ return fx(p.F,2); }).join(' + ')+') ÷ '+done.length+' = <b>'+fx(avgF,2)+' MPa</b>')
+    + '</div>';
+}
+
+function switchTab(tab, el){
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+  el.classList.add('active');
+  document.getElementById('section-'+tab).classList.add('active');
+}
+
+buildSchmidt('general');
+buildSchmidt('science');
+buildSchmidt('kalis');
+updateUS();
+
+if('serviceWorker' in navigator){ window.addEventListener('load', function(){ navigator.serviceWorker.register('../sw.js', {scope:'../'}).catch(function(){}); }); }
+</script>
+</body>
+</html>

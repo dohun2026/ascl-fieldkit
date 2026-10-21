@@ -62,6 +62,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 .design-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
 .design-bar label{display:block;font-size:12px;color:#3c3c43;margin-bottom:5px;font-weight:600}
 .design-bar .seg{margin-bottom:0}
+.gref{margin-top:10px;padding-top:2px;font-size:11.5px;color:#6b7280;line-height:1.7}
+.gref .rt{font-weight:600;color:#3c3c43;margin-bottom:2px}
+.gref .rr{display:grid;grid-template-columns:auto 1fr auto;gap:2px 8px;align-items:center}
+.gref .gc{display:inline-block;min-width:18px;text-align:center;font-weight:800;color:#fff;border-radius:5px;padding:0 4px;font-size:10.5px}
+.gref .gv{font-family:Menlo,'Courier New',monospace;color:#1c1c1e;text-align:right;white-space:nowrap;line-height:1.35}
+.gref .gv small{font-size:10.5px;color:#6b7280}
 .grade-box{margin-top:12px;border-radius:10px;padding:11px 12px;font-size:12.5px;line-height:1.6}
 .grade-box .gh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .grade-box .gl{font-size:28px;font-weight:800;width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff}
@@ -75,6 +81,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 .gbar i{position:absolute;top:-4px;width:3px;height:16px;background:#1c1c1e;border-radius:2px}
 .gticks{display:flex;justify-content:space-between;font-size:10px;color:#8e8e93;margin-top:3px;position:relative;height:12px}
 .gticks span{position:absolute;transform:translateX(-50%)}
+.gticks span:first-child{transform:none}.gticks span:last-child{transform:translateX(-100%)}
+.gmpa{color:#3c3c43;font-weight:700;margin-top:1px}
+.gunit{font-size:10px;color:#8e8e93;text-align:right;margin-top:4px}
 .cell .cg{display:inline-block;font-size:10.5px;font-weight:800;color:#fff;border-radius:6px;padding:0 6px;margin-top:3px}
 .result{border:1.5px solid #007aff;border-radius:12px;padding:16px;margin-top:4px}
 .result.empty{border-style:dashed;border-color:#c7c7cc;color:#8e8e93;font-size:13px;text-align:center;padding:18px}
@@ -356,6 +365,7 @@ function buildSchmidt(id){
 }
 
 function setMode(id, mode){
+  setTimeout(syncDesignBar, 0);
   S[id].mode = mode;
   document.getElementById('mode-fwd-'+id).classList.toggle('active', mode==='fwd');
   document.getElementById('mode-rev-'+id).classList.toggle('active', mode==='rev');
@@ -455,6 +465,7 @@ function update(id){
       + step(2,'식을 R₀+α 로 정리', 'R₀+α = '+M.invStr(target,K.k)+'\n     = <b>'+fx(RaReq,2)+'</b>')
       + step(3,'각도보정 반영', aReq.label+'\nR₀ = '+fx(RaReq,2)+' − ('+aReq.val+') = <b>'+fx(r0Req,2)+'</b>')
       + (bad ? '' : step(4,'검산', M.fwdStr(r0Req+aReq.val,K.k)+'\n= '+fx(check,2)+' MPa'))
+      + gradeRef(target, function(f){ return solveR0(M.inv(f, K.k), st.angle); }, 'R₀')
       + '</div>';
   }
 }
@@ -487,7 +498,21 @@ function gradeBox(f, label){
   return '<div class="grade-box gb-'+G.g+'"><div class="gh"><div class="gl">'+G.g+'</div><div><div class="gt">평가등급 '+G.g+' · 평가점수 '+G.score+'</div><div>'+G_TXT[G.g]+'</div></div></div>'
     + '<div class="gm">ac = '+(label||'측정강도')+' '+fx(f,2)+' ÷ 설계 '+DESIGN.fck+' × 100 = <b>'+fx(G.ac,1)+'%</b></div>'
     + '<div class="gbar"><i style="left:calc('+pos+'% - 1.5px)"></i></div>'
-    + '<div class="gticks"><span style="left:0%">40%</span><span style="left:37.5%">70%</span><span style="left:56.25%">85%</span><span style="left:75%">100%</span><span style="left:100%">120%</span></div></div>';
+    + '<div class="gticks"><span style="left:0%">40%</span><span style="left:37.5%">70%</span><span style="left:56.25%">85%</span><span style="left:75%">100%</span><span style="left:100%">120%</span></div>'
+    + '<div class="gticks gmpa">' + [[0,40],[37.5,70],[56.25,85],[75,100],[100,120]].map(function(t){ return '<span style="left:'+t[0]+'%">'+fx(DESIGN.fck*t[1]/100,1)+'</span>'; }).join('') + '</div>'
+    + '<div class="gunit">아래 숫자 = 해당 비율의 강도 (MPa, 설계 '+DESIGN.fck+' 기준)</div></div>';
+}
+// 역계산 참조: 목표강도를 기준(100%)으로 등급 경계별 필요값
+function gradeRef(target, needFn, unit, extraFn){
+  var rows = [['a', 100], ['c', 85], ['d', 70]], last = null;
+  var num = function(x){ return String(Math.round(x * 100) / 100); };
+  var html = rows.map(function(r){
+    var f = target * r[1] / 100, v = needFn(f), ok = isFinite(v) && v > 0;
+    if (ok) last = v;
+    return '<span><span class="gc" style="background:'+G_COL[r[0]]+'">'+r[0]+'</span></span><span>'+r[1]+'% · '+num(f)+' MPa</span><span class="gv">'+(ok ? fx(v, unit==='R₀'?1:3)+' 이상'+(extraFn ? extraFn(v) : '') : '—')+'</span>';
+  }).join('');
+  return '<div class="gref"><div class="rt">참조 · 목표 '+target+' MPa를 100%로 본 등급별 필요 '+(unit==='R₀'?'R₀':'Vd (km/s)')+'</div><div class="rr">'+html+
+    '<span><span class="gc" style="background:'+G_COL.e+'">e</span></span><span>70% 미만</span><span class="gv">'+(last ? fx(last, unit==='R₀'?1:3)+' 미만' : '—')+'</span></div></div>';
 }
 function onDesign(){
   DESIGN.fck = val('design-fck');
@@ -500,6 +525,11 @@ function setDamage(v){
   try{ localStorage.setItem('ndt_design', JSON.stringify({fck:DESIGN.fck||'', damaged:DESIGN.damaged})); }catch(e){}
   refreshAll();
 }
+function syncDesignBar(){
+  var sec = document.querySelector('.section.active'); if(!sec) return;
+  var id = sec.id.replace('section-',''), rev = id==='ultrasonic' ? US.mode==='rev' : (S[id] && S[id].mode==='rev');
+  document.querySelector('.design-bar').style.display = rev ? 'none' : '';
+}
 function refreshAll(){ ['general','science','kalis'].forEach(function(id){ update(id); }); updateUS(); }
 
 var US = {mode:'fwd', method:'direct'};
@@ -507,6 +537,7 @@ var US_F = function(vd){ return (102*vd-117)*0.098; };
 var US_INV = function(F){ return (F/0.098+117)/102; };
 
 function setUSMode(mode){
+  setTimeout(syncDesignBar, 0);
   US.mode = mode;
   document.getElementById('us-mode-fwd').classList.toggle('active', mode==='fwd');
   document.getElementById('us-mode-rev').classList.toggle('active', mode==='rev');
@@ -576,6 +607,7 @@ function updateUS(){
       + step(1,'식을 Vd 로 정리','Vd = (F ÷ 0.098 + 117) ÷ 102\n   = ('+F+' ÷ 0.098 + 117) ÷ 102\n   = <b>'+fx(vReq,4)+' km/s</b>')
       + (lines.length ? step(2,'측점별 허용 전파시간'+(pts.some(function(p){return p.vd!==null;})?' · 측정값 판정':''), lines.join('\n')) : '')
       + '<div class="hint" style="margin-top:8px">측정 t를 함께 입력하면 측점별로 적합/미달을 표시합니다.</div>'
+      + gradeRef(F, US_INV, 'Vd', (!surface && withL.length) ? function(v){ return '<br><small>t ≤ '+fx(withL[0].L/v,1)+' μs</small>'; } : null)
       + '</div>';
     return;
   }
@@ -629,6 +661,7 @@ function updateUS(){
 }
 
 function switchTab(tab, el){
+  setTimeout(syncDesignBar, 0);
   document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
   document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
   el.classList.add('active');

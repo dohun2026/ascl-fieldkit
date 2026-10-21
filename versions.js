@@ -5,6 +5,6 @@
 window.FK_VERSIONS = {
   app:   { v: 'v1', date: '2026.10.19', note: '세 도구 통합' },
   tilt:  { v: 'v1', date: '2026.10.18', note: '오프라인·카톡 공유·mm 자동 환산', author: '김도훈' },
-  ndt:   { v: 'v6', date: '2026.10.20', note: '설계강도 입력 → 강도 평가등급(a~e) 표시', author: '김도훈' },
+  ndt:   { v: 'v8', date: '2026.10.21', note: '역계산에 등급 경계별 필요 R₀·Vd 참조 표시', author: '김도훈' },
   rebar: { v: 'v2', date: '2026.10.19', note: '작은보 배치·철근 기초·롤링마크', author: '김도훈' }
 };

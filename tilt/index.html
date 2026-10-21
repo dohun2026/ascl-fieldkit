@@ -114,7 +114,32 @@
   .unit-strip{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--sub); margin:-4px 0 14px;}
   .unit-strip b{color:var(--title);}
 
-  .site-card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px;}
+  .site-card{background:var(--card); border:1px solid var(--border); border-left:5px solid var(--border); border-radius:12px; padding:14px 14px 14px 12px; margin-bottom:12px;}
+  .site-card.st-ok{border-left-color:#2563eb;}
+  .site-card.st-err{border-left-color:#dc2626;}
+  .site-card.st-warn{border-left-color:#d97706;}
+  .site-card.collapsed .site-body, .site-card.collapsed .msgs{display:none;}
+  .site-card.collapsed .site-head{margin-bottom:0;}
+  .site-card.collapsed{padding-top:10px; padding-bottom:10px;}
+  .site-card.collapsed .del-btn{display:none;}
+  .site-card.collapsed .site-name{pointer-events:none;}
+  .site-card.collapsed.st-ok{background:color-mix(in srgb, #2563eb 6%, var(--card));}
+  .site-card.collapsed.st-err{background:color-mix(in srgb, #dc2626 7%, var(--card));}
+  .site-card.collapsed.st-warn{background:color-mix(in srgb, #d97706 7%, var(--card));}
+  .st-chip{font-size:11.5px; font-weight:700; border-radius:10px; padding:2px 8px; white-space:nowrap; flex-shrink:0;}
+  .st-ok .st-chip{background:#dbeafe; color:#1d4ed8;} .st-err .st-chip{background:#fee2e2; color:#b91c1c;}
+  .st-warn .st-chip{background:#fef3c7; color:#b45309;} .st-new .st-chip{background:var(--field-b); color:var(--sub);}
+  .head-sum{font-size:11.5px; color:var(--sub); margin:6px 0 0 2px; font-variant-numeric:tabular-nums;}
+  .site-card:not(.collapsed) .head-sum{display:none;}
+  .fold-btn{background:transparent; border:1px solid var(--border); color:var(--sub); border-radius:6px; width:32px; height:30px; font-size:14px; cursor:pointer; flex-shrink:0;}
+  .msgs{margin:0 0 10px; padding:8px 10px; border-radius:8px; background:#fee2e2; color:#b91c1c; font-size:12px; line-height:1.6;}
+  .msgs.warn{background:#fef3c7; color:#92400e;}
+  .msgs:empty{display:none;}
+  .site-tools{display:flex; align-items:center; gap:8px; margin:0 0 10px; flex-wrap:wrap;}
+  .site-tools .cnt{font-size:12px; color:var(--sub); flex:1; min-width:160px;}
+  .site-tools .cnt b{font-weight:800;}
+  .site-tools button{font-size:12px; font-weight:600; border:1px solid var(--border); background:var(--card); color:var(--text); border-radius:7px; padding:6px 10px; cursor:pointer;}
+  .bad-in{border-color:#dc2626 !important; background:#fff5f5 !important;}
   .site-head{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
   .site-head input.site-name{flex:1; min-width:0; font-size:15px; font-weight:700; border:1px solid transparent; background:transparent; padding:6px 8px; border-radius:6px; color:var(--title);}
   .site-head input.site-name:focus{border-color:var(--border); background:var(--field);}
@@ -235,6 +260,7 @@ header .header-row{padding-right:64px}
         ※ H2(편각)는 정면 0°0′0″ 기준 원주각(0°~360°)을 그대로 입력합니다. 180° 초과 값은 좌측 편위로 자동 환산됩니다(예: 358°10′20″ → −1°49′40″).
       </div>
     </details>
+    <div class="site-tools" id="siteTools"><span class="cnt"></span><button onclick="foldAll(true)">모두 접기</button><button onclick="foldAll(false)">모두 펼치기</button></div>
     <div id="sitesContainer"></div>
     <button class="add-site-btn" onclick="addSite()">＋ 측점(개소) 추가</button>
   </div>
@@ -335,6 +361,82 @@ function computeSite(site){
   return { valid:true, L, v1, v2, h2s, h1, h2, H, D, n, permil, angle, direction, grade };
 }
 
+/* ---------- 측점 입력 검사 ----------
+   new: 아무것도 안 넣음 / err: 빈칸·범위 오류·상하부 뒤바뀜 / warn: 계산은 되지만 재확인 권장 / ok: 완료 */
+const NAMES = {v1:'V1', v2:'V2', h2:'H2'}, UNIT = {d:'도', m:'분', s:'초'};
+function checkSite(site){
+  const blank = v => v === '' || v == null;
+  const all = [site.L].concat(['v1','v2','h2'].flatMap(g => ['d','m','s'].map(k => site[g][k])));
+  if (all.every(blank)) return {st:'new', msgs:[], bad:[]};
+  const msgs = [], bad = [];
+  const miss = [];
+  if (blank(site.L)) { miss.push('거리 L'); bad.push('L'); }
+  ['v1','v2','h2'].forEach(g => ['d','m','s'].forEach(k => { if (blank(site[g][k])) { miss.push(NAMES[g] + ' ' + UNIT[k]); bad.push(g + '.' + k); } }));
+  if (miss.length) msgs.push('빈칸: ' + miss.join(', '));
+  const L = parseFloat(site.L);
+  if (!blank(site.L) && !(L > 0)) { msgs.push('거리 L은 0보다 커야 합니다'); bad.push('L'); }
+  ['v1','v2','h2'].forEach(g => {
+    ['m','s'].forEach(k => { const v = parseFloat(site[g][k]); if (!blank(site[g][k]) && (v < 0 || v >= 60)) { msgs.push(NAMES[g] + ' ' + UNIT[k] + '는 0~59 범위'); bad.push(g + '.' + k); } });
+    const d = parseFloat(site[g].d);
+    if (!blank(site[g].d)) {
+      if (g !== 'h2' && (d <= 0 || d >= 180)) { msgs.push(NAMES[g] + ' 천정각은 0~180° 범위'); bad.push(g + '.d'); }
+      if (g === 'h2' && (d < 0 || d >= 360)) { msgs.push('H2 편각은 0~360° 범위'); bad.push('h2.d'); }
+    }
+  });
+  if (msgs.length) return {st:'err', msgs, bad};
+  const v1 = toDeg(site.v1), v2 = toDeg(site.v2);
+  if (v2 >= v1) return {st:'err', msgs:['V2(상부) 천정각이 V1(하부)보다 크거나 같습니다 — 상·하부 값이 바뀌었는지 확인'], bad:['v1.d','v2.d']};
+  const r = computeSite(site), warns = [];
+  if (Math.abs(r.h2s) > 5) warns.push('편각이 ' + Math.abs(r.h2s).toFixed(1) + '°로 큽니다 — 시준 기준(0°) 확인');
+  if (r.n !== null && r.n < 150) warns.push('기울기 1/' + Math.round(r.n) + '로 매우 큼(e등급) — 입력값 재확인 권장');
+  if (warns.length) return {st:'warn', msgs:warns, bad:[]};
+  return {st:'ok', msgs:[], bad:[]};
+}
+function resultFor(site){
+  const st = checkSite(site).st;
+  if (st === 'new') return '<div class="item" style="grid-column:1/-1;">거리 L과 각도를 입력하면 결과가 표시됩니다.</div>';
+  if (st === 'err') return '<div class="item" style="grid-column:1/-1;color:#b91c1c">빨간 칸을 채우거나 고치면 결과가 표시됩니다.</div>';
+  return resultHtml(computeSite(site));
+}
+function headSummary(site, c){
+  if (c.st === 'new') return '입력 전';
+  if (c.st === 'err') return c.msgs[0];
+  const r = computeSite(site);
+  const ratio = r.n === null ? '수직' : '1/' + Math.round(r.n).toLocaleString('ko-KR');
+  return 'H ' + f0(r.H) + ' · D ' + f1(r.D) + ' mm · ' + ratio + ' · ' + r.direction + ' · ' + r.grade + '등급';
+}
+const ST_LABEL = {ok:'완료', err:'확인 필요', warn:'재확인', new:'작성 전'};
+let collapsedIds = new Set();
+function applyStatus(card, site){
+  const c = checkSite(site);
+  card.classList.remove('st-ok','st-err','st-warn','st-new');
+  card.classList.add('st-' + c.st);
+  card.querySelector('.st-chip').textContent = ST_LABEL[c.st];
+  card.querySelector('.head-sum').textContent = headSummary(site, c);
+  const m = card.querySelector('.msgs');
+  m.className = 'msgs' + (c.st === 'warn' ? ' warn' : '');
+  m.innerHTML = c.msgs.map(t => '• ' + escapeHtml(t)).join('<br>');
+  card.querySelectorAll('input[data-field]').forEach(el => el.classList.toggle('bad-in', c.bad.indexOf(el.dataset.field) >= 0));
+  updateSiteTools();
+}
+function toggleSite(id){
+  if (collapsedIds.has(id)) collapsedIds.delete(id); else collapsedIds.add(id);
+  const card = document.querySelector('.site-card[data-id="' + id + '"]');
+  if (card) { card.classList.toggle('collapsed', collapsedIds.has(id)); card.querySelector('.fold-btn').textContent = collapsedIds.has(id) ? '▾' : '▴'; }
+}
+function foldAll(fold){
+  const p = getCurrentProject(); if (!p) return;
+  p.sites.forEach(s => { if (fold) collapsedIds.add(s.id); else collapsedIds.delete(s.id); });
+  renderProject();
+}
+function updateSiteTools(){
+  const p = getCurrentProject(), el = document.getElementById('siteTools'); if (!p || !el) return;
+  const cnt = {ok:0, err:0, warn:0, new:0};
+  p.sites.forEach(s => cnt[checkSite(s).st]++);
+  el.querySelector('.cnt').innerHTML = '측점 ' + p.sites.length + '개 · <b style="color:#2563eb">완료 ' + cnt.ok + '</b>' +
+    (cnt.warn ? ' · <b style="color:#d97706">재확인 ' + cnt.warn + '</b>' : '') + (cnt.err ? ' · <b style="color:#dc2626">확인 필요 ' + cnt.err + '</b>' : '') + (cnt.new ? ' · 작성 전 ' + cnt.new : '');
+}
+
 const f0 = v => Math.round(v).toLocaleString('ko-KR');
 const f1 = v => v.toLocaleString('ko-KR',{minimumFractionDigits:1, maximumFractionDigits:1});
 
@@ -348,6 +450,9 @@ function goHome(){
   renderHome();
 }
 function openProject(id){
+  collapsedIds = new Set();
+  const _p = projects.find(x=>x.id===id);
+  if (_p) { _p.sites.forEach((s, i) => { if (checkSite(s).st === 'ok' && i < _p.sites.length - 1) collapsedIds.add(s.id); }); }
   currentProjectId = id;
   document.getElementById('homeHeader').classList.add('hidden');
   document.getElementById('projectHeader').classList.remove('hidden');
@@ -428,8 +533,12 @@ function renderProjectHeader(){
 }
 function addSite(){
   const p = getCurrentProject(); if(!p) return;
-  p.sites.push(defaultSite('측점 ' + (p.sites.length+1)));
+  p.sites.forEach(s => collapsedIds.add(s.id));
+  const ns = defaultSite('측점 ' + (p.sites.length+1));
+  p.sites.push(ns);
   save(); renderProject();
+  const card = document.querySelector('.site-card[data-id="' + ns.id + '"]');
+  if (card) { card.scrollIntoView({behavior:'smooth', block:'start'}); const inp = card.querySelector('.L-input'); if (inp) setTimeout(() => inp.focus({preventScroll:true}), 350); }
 }
 function removeSite(id){
   const p = getCurrentProject(); if(!p) return;
@@ -473,12 +582,16 @@ function renderProject(){
   container.innerHTML = p.sites.map((site, idx)=>{
     const r = computeSite(site);
     return `
-    <div class="site-card" data-id="${site.id}">
-      <div class="site-head">
+    <div class="site-card${collapsedIds.has(site.id) ? ' collapsed' : ''}" data-id="${site.id}">
+      <div class="site-head" onclick="if(event.target.closest('input,button'))return; toggleSite(${site.id})" style="cursor:pointer">
         <span class="badge-idx">#${idx+1}</span>
         <input class="site-name" value="${escapeHtml(site.name)}" data-site="${site.id}" data-field="name" aria-label="측점명">
+        <span class="st-chip"></span>
         <button class="del-btn" onclick="removeSite(${site.id})">삭제</button>
+        <button class="fold-btn" onclick="toggleSite(${site.id})" aria-label="접기/펼치기">${collapsedIds.has(site.id) ? '▾' : '▴'}</button>
       </div>
+      <div class="head-sum"></div>
+      <div class="msgs"></div>
       <div class="site-body">
         <div class="grid-inputs">
           <div class="row-field">
@@ -490,11 +603,13 @@ function renderProject(){
           <div class="row-field"><label>V2 (상부, 천정각)</label><div class="dms">${dmsInputs(site,'v2')}</div></div>
           <div class="row-field"><label>H2 (편각, 0°~360°)</label><div class="dms">${dmsInputs(site,'h2')}</div></div>
         </div>
-        <div class="result-box">${resultHtml(r)}</div>
+        <div class="result-box">${resultFor(site)}</div>
       </div>
     </div>`;
   }).join('');
   container.querySelectorAll('input').forEach(el=>el.addEventListener('input', onFieldChange));
+  p.sites.forEach(s => { const card = container.querySelector('.site-card[data-id="' + s.id + '"]'); if (card) applyStatus(card, s); });
+  updateSiteTools();
 }
 function onFieldChange(e){
   const el = e.target, p = getCurrentProject(); if(!p) return;
@@ -504,8 +619,9 @@ function onFieldChange(e){
   else site[field] = el.value;
   save();
   const card = el.closest('.site-card');
-  card.querySelector('.result-box').innerHTML = resultHtml(computeSite(site));
+  card.querySelector('.result-box').innerHTML = resultFor(site);
   if(field === 'L') card.querySelector('.warn-slot').innerHTML = warnHtml(site);
+  applyStatus(card, site);
 }
 
 /* ---------- 엑셀 저장 (ExcelJS: 수식 + 테두리 서식) ---------- */
@@ -515,7 +631,7 @@ const XFONT = { name:'맑은 고딕', size:10 };
 
 function buildWorkbook(p){
   const all = p.sites.map(s=>({s, r:computeSite(s)}));
-  const rows = all.filter(x=>x.r.valid);
+  const rows = all.filter(x=>x.r.valid && ['ok','warn'].indexOf(checkSite(x.s).st) >= 0);
   const wb = new ExcelJS.Workbook();
   const ws1 = wb.addWorksheet('측정상세');
   const ws2 = wb.addWorksheet('보고서용');

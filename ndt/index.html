@@ -58,6 +58,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 .k-err{font-size:12px;color:#ff3b30;margin-top:5px}
 
 /* 결과 */
+.design-bar{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.design-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}
+.design-bar label{display:block;font-size:12px;color:#3c3c43;margin-bottom:5px;font-weight:600}
+.design-bar .seg{margin-bottom:0}
+.grade-box{margin-top:12px;border-radius:10px;padding:11px 12px;font-size:12.5px;line-height:1.6}
+.grade-box .gh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.grade-box .gl{font-size:28px;font-weight:800;width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff}
+.grade-box .gt{font-size:13px;font-weight:700}
+.grade-box .gm{font-family:Menlo,'Courier New',monospace;font-size:12px;margin-top:6px}
+.gb-a,.gb-b{background:#e3f7e8}.gb-a .gl,.gb-b .gl{background:#1a7f37}
+.gb-c{background:#fff4dc}.gb-c .gl{background:#c27c0e}
+.gb-d{background:#ffe9dc}.gb-d .gl{background:#d9530f}
+.gb-e{background:#ffe5e3}.gb-e .gl{background:#d70015}
+.gbar{position:relative;height:8px;border-radius:4px;margin-top:8px;background:linear-gradient(90deg,#d70015 0 37.5%,#d9530f 37.5% 56.25%,#c27c0e 56.25% 75%,#1a7f37 75% 100%)}
+.gbar i{position:absolute;top:-4px;width:3px;height:16px;background:#1c1c1e;border-radius:2px}
+.gticks{display:flex;justify-content:space-between;font-size:10px;color:#8e8e93;margin-top:3px;position:relative;height:12px}
+.gticks span{position:absolute;transform:translateX(-50%)}
+.cell .cg{display:inline-block;font-size:10.5px;font-weight:800;color:#fff;border-radius:6px;padding:0 6px;margin-top:3px}
 .result{border:1.5px solid #007aff;border-radius:12px;padding:16px;margin-top:4px}
 .result.empty{border-style:dashed;border-color:#c7c7cc;color:#8e8e93;font-size:13px;text-align:center;padding:18px}
 .result.warn{border-color:#ff9500}
@@ -119,6 +137,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Apple SD Gothic Ne
 </div>
 
 <div class="content">
+  <div class="design-bar">
+    <div class="design-row">
+      <div><label>설계기준강도 fck</label><div class="with-unit"><input class="num-in" type="number" id="design-fck" placeholder="예) 24" step="0.1" inputmode="decimal" oninput="onDesign()"><span class="unit">MPa</span></div></div>
+      <div><label>외관 상태</label><div class="seg" id="damage-seg"><button class="active" onclick="setDamage(0)">손상 없음</button><button onclick="setDamage(1)">경미한 손상</button></div></div>
+    </div>
+    <div class="hint">입력하면 강도 결과 아래에 평가등급(a~e)이 표시됩니다. 측정강도가 100% 이상일 때 외관 손상 여부로 a·b를 나눕니다.</div>
+  </div>
   <div id="section-general" class="section active"></div>
   <div id="section-science" class="section"></div>
   <div id="section-kalis" class="section"></div>
@@ -407,6 +432,7 @@ function update(id){
       + step(1,'보정 반발경도','R₀ = '+fx(r0,1)+'\n'+a.label+'\nR₀+α = <b>'+fx(Ra,2)+'</b>')
       + step(2,'재령계수', K.label)
       + step(3,'추정식 대입', M.fwdStr(Ra,K.k)+'\n= <b>'+fx(f,2)+' MPa</b>')
+      + gradeBox(f, '추정강도')
       + '</div>';
   } else {
     var target = val('target-'+id);
@@ -437,6 +463,45 @@ function update(id){
    초음파속도법
    F = (102Vd − 117) × 0.098 [MPa]
    ========================================================= */
+/* ===== 콘크리트 강도 평가등급 =====
+   ac = 측정강도 ÷ 설계기준강도 × 100
+   a: ac ≥ 100%  /  b: ac ≥ 100% (경미한 손상 있음)  /  c: 85% ≤ ac < 100%  /  d: 70% ≤ ac < 85%  /  e: ac < 70%
+   평가점수(대표값) a 1, b 3, c 5, d 7, e 9   — 경계값(85·70%)은 상위 등급으로 판정 */
+var DESIGN = {fck:NaN, damaged:false};
+try{ var _d = JSON.parse(localStorage.getItem('ndt_design')||'{}'); if(_d.fck) DESIGN.fck = +_d.fck; DESIGN.damaged = !!_d.damaged; }catch(e){}
+function gradeOf(f){
+  if(!(DESIGN.fck > 0) || !(f > 0)) return null;
+  var ac = f / DESIGN.fck * 100, g;
+  if(ac >= 100) g = DESIGN.damaged ? 'b' : 'a';
+  else if(ac >= 85) g = 'c';
+  else if(ac >= 70) g = 'd';
+  else g = 'e';
+  return {ac:ac, g:g, score:{a:1,b:3,c:5,d:7,e:9}[g]};
+}
+var G_TXT = {a:'설계강도 이상', b:'설계강도 이상 · 경미한 손상', c:'설계강도의 85~100%', d:'설계강도의 70~85%', e:'설계강도의 70% 미만'};
+var G_COL = {a:'#1a7f37', b:'#1a7f37', c:'#c27c0e', d:'#d9530f', e:'#d70015'};
+function gradeBox(f, label){
+  var G = gradeOf(f);
+  if(!G) return DESIGN.fck > 0 ? '' : '<div class="hint" style="margin-top:10px;text-align:center">상단에 설계기준강도를 입력하면 평가등급이 표시됩니다.</div>';
+  var pos = Math.max(0, Math.min(100, (G.ac - 40) / 80 * 100));   // 40%~120% 구간 표시
+  return '<div class="grade-box gb-'+G.g+'"><div class="gh"><div class="gl">'+G.g+'</div><div><div class="gt">평가등급 '+G.g+' · 평가점수 '+G.score+'</div><div>'+G_TXT[G.g]+'</div></div></div>'
+    + '<div class="gm">ac = '+(label||'측정강도')+' '+fx(f,2)+' ÷ 설계 '+DESIGN.fck+' × 100 = <b>'+fx(G.ac,1)+'%</b></div>'
+    + '<div class="gbar"><i style="left:calc('+pos+'% - 1.5px)"></i></div>'
+    + '<div class="gticks"><span style="left:0%">40%</span><span style="left:37.5%">70%</span><span style="left:56.25%">85%</span><span style="left:75%">100%</span><span style="left:100%">120%</span></div></div>';
+}
+function onDesign(){
+  DESIGN.fck = val('design-fck');
+  try{ localStorage.setItem('ndt_design', JSON.stringify({fck:DESIGN.fck||'', damaged:DESIGN.damaged})); }catch(e){}
+  refreshAll();
+}
+function setDamage(v){
+  DESIGN.damaged = !!v;
+  var bs = document.querySelectorAll('#damage-seg button'); bs[0].classList.toggle('active', !v); bs[1].classList.toggle('active', !!v);
+  try{ localStorage.setItem('ndt_design', JSON.stringify({fck:DESIGN.fck||'', damaged:DESIGN.damaged})); }catch(e){}
+  refreshAll();
+}
+function refreshAll(){ ['general','science','kalis'].forEach(function(id){ update(id); }); updateUS(); }
+
 var US = {mode:'fwd', method:'direct'};
 var US_F = function(vd){ return (102*vd-117)*0.098; };
 var US_INV = function(F){ return (F/0.098+117)/102; };
@@ -530,6 +595,7 @@ function updateUS(){
       + step(1,'Vd 산정 (직접법)','Vd = L ÷ t = '+vdStr(p)+'\n   = <b>'+fx(p.vd,4)+' km/s</b>')
       + step(2,'추정식 대입','F = (102 × Vd − 117) × 0.098\n  = (102 × '+fx(p.vd,4)+' − 117) × 0.098\n  = ('+fx(102*p.vd,2)+' − 117) × 0.098')
       + step(3,'추정 압축강도','F = <b>'+fx(p.F,2)+' MPa</b>')
+      + gradeBox(p.F, '추정강도')
       + '</div>';
     return;
   }
@@ -539,7 +605,9 @@ function updateUS(){
     return '<div class="cell'+(p.F===null?' off':'')+'">'
       + '<div class="cl">'+p.no+(okNum(p.L)?' L='+p.L:'')+'</div>'
       + '<div class="cv">'+(p.F===null?'—':fx(p.F,2))+'<small> MPa</small></div>'
-      + '<div class="cs">'+(p.vd===null?'입력 대기':'Vd '+fx(p.vd,3))+'</div></div>';
+      + '<div class="cs">'+(p.vd===null?'입력 대기':'Vd '+fx(p.vd,3))+'</div>'
+      + (function(){ var G = p.F===null ? null : gradeOf(p.F); return G ? '<span class="cg" style="background:'+G_COL[G.g]+'">'+G.g+' · '+fx(G.ac,0)+'%</span>' : ''; })()
+      + '</div>';
   }).join('');
   var all3 = done.length===3;
   var avgVd = done.reduce(function(s,p){ return s+p.vd; },0)/done.length;
@@ -556,6 +624,7 @@ function updateUS(){
     + step(1,'측점별 Vd 산정 (km/s)', pts.map(function(p){ return p.no+' '+(p.vd===null?'—':vdStr(p)+' = <b>'+fx(p.vd,4)+'</b>'); }).join('\n'))
     + step(2,'측점별 추정식 대입 F = (102×Vd − 117)×0.098', pts.map(function(p){ return p.no+' '+(p.F===null?'—':'(102×'+fx(p.vd,4)+' − 117)×0.098 = <b>'+fx(p.F,2)+' MPa</b>'); }).join('\n'))
     + step(3,'평균', 'F = ('+done.map(function(p){ return fx(p.F,2); }).join(' + ')+') ÷ '+done.length+' = <b>'+fx(avgF,2)+' MPa</b>')
+    + gradeBox(avgF, '평균강도')
     + '</div>';
 }
 
@@ -566,6 +635,8 @@ function switchTab(tab, el){
   document.getElementById('section-'+tab).classList.add('active');
 }
 
+if(DESIGN.fck > 0) document.getElementById('design-fck').value = DESIGN.fck;
+if(DESIGN.damaged){ var _bs = document.querySelectorAll('#damage-seg button'); _bs[0].classList.remove('active'); _bs[1].classList.add('active'); }
 buildSchmidt('general');
 buildSchmidt('science');
 buildSchmidt('kalis');
